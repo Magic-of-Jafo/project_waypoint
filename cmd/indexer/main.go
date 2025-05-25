@@ -3,8 +3,11 @@ package main
 import (
 	"flag" // Added for configuration management
 	"fmt"
-	"os"   // New: For ordered output
-	"time" // Added for politeness delay
+	"io" // New: For io.MultiWriter
+	"log"
+	"os"            // New: For ordered output
+	"path/filepath" // New: For joining paths
+	"time"          // Added for politeness delay
 
 	// "sort" // Will be needed later for ordered output if desired
 
@@ -134,12 +137,35 @@ func performFullScan(baseURL string, requestDelayMs int, tracker *metrics.Metric
 func main() {
 	cfg := loadConfig() // Load config first
 
-	// Initialize Logger (Task 4)
-	logger.Init(cfg.logLevel, nil) // Initialize with configured level
+	// --- Setup Logging (Task 4 from Story 1.6) ---
+	// Ensure the output directory exists
+	if err := os.MkdirAll(cfg.outputDir, os.ModePerm); err != nil {
+		log.Fatalf("Failed to create output directory %s: %v", cfg.outputDir, err)
+	}
+
+	logFilePath := filepath.Join(cfg.outputDir, "indexer_run_forum48.log")
+	logFile, err := os.OpenFile(logFilePath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0660)
+	if err != nil {
+		// Fallback to stderr only if file opening fails
+		logger.Init(cfg.logLevel, nil) // Initialize with configured level to stderr
+		logger.Errorf("Failed to open log file %s: %v. Logging to stderr only.", logFilePath, err)
+	} else {
+		// 정상적인 경우: 파일과 stderr 모두에 로깅
+		multiWriter := io.MultiWriter(os.Stderr, logFile)
+		logger.Init(cfg.logLevel, multiWriter) // Initialize with configured level
+		// main 함수가 반환될 때 logFile이 닫히도록 예약
+		defer func() {
+			if err := logFile.Close(); err != nil {
+				// stderr로 직접 로깅 시도 (logger 인스턴스가 이 시점에 유효하지 않을 수 있으므로)
+				log.Printf("Failed to close log file %s: %v", logFilePath, err)
+			}
+		}()
+	}
 
 	logger.Infof("Starting Project Waypoint Indexer...")
 	logger.Infof("Configuration: URL=%s, OutputDir=%s, Delay=%dms, LogLevel=%s, MaxPages=%d",
 		cfg.subForumURL, cfg.outputDir, cfg.requestDelay, cfg.logLevel, cfg.maxPages)
+	logger.Infof("Logs will also be written to: %s", logFilePath)
 
 	tracker := metrics.NewMetricsTracker()
 	// Defer final metrics logging for the very end, even if panics occur (though log.Fatalf will exit)
