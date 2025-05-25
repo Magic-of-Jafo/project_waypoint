@@ -1,85 +1,93 @@
-# The BMAD-Method (Breakthrough Method of Agile (ai-driven) Development)
+# Project Waypoint
 
-Current Version: V3 Release of the "Bmad Agent"
+Project Waypoint is a Go-based application designed to crawl and index web forum content. The initial version focuses on discovering all paginated page URLs within a specific sub-forum of The Magic Cafe (`themagiccafe.com`).
 
-Demo of the BMad Agent entire workflow output from the web agent can be found in [Demos](./demos/readme.md) - and if you want to read a really really reallllly long transcript of me talking to the multiple personality BMad Agent that produced the demo content - you can read the [full transcript](https://gemini.google.com/share/41fb640b63b0) here.
+## Features
 
-## Web Quickstart Project Setup (Recommended)
+*   **Sub-Forum Page Discovery:** Given the URL of a sub-forum page on The Magic Cafe, the `indexer` tool can:
+    *   Fetch the HTML content of the page.
+    *   Parse pagination links (including numbered pages and those with ellipses).
+    *   Generate a complete list of all unique URLs for every page within that sub-forum's thread listing.
 
-Orchestrator Uber BMad Agent that does it all - already [pre-built](./web-build-sample/agent-prompt.txt)! Just copy to a Gemini Gem or custom GPT as instructions, and attach the remaining files from the web-build-sample folder to the agent as shown in the following image:
+## Technology Stack
 
-![image info](./docs/images/gem-setup.png)
+*   **Go (Golang):** The primary programming language.
+*   **`github.com/PuerkitoBio/goquery`:** Used for HTML parsing and DOM manipulation.
 
-If you are not sure what to do in the Web Agent - try /help to get a list of commands, and /agents to see what personas BMad can become.
+## Project Structure
 
-If you are going to use the IDE Agents in your project, after cloning the repo, you can copy the bmad-agent folder to your project as is if you like - this is the easiest. You can also from this cloned repo root folder execute the command with nodeJS to build and bundle your assets to easily program an ultra powerful Web Agent to handle all agile process from ideation to ready to develop (Recommended).
+```
+project-waypoint/
+├── cmd/
+│   └── indexer/
+│       └── main.go         # Main application for the indexer CLI
+├── internal/
+│   └── indexer/
+│       └── navigation/
+│           ├── navigation.go       # Core logic for fetching and parsing pagination
+│           └── navigation_test.go  # Unit tests for navigation logic
+├── go.mod                  # Go module definition
+├── go.sum                  # Go module checksums
+├── docs/                   # Project documentation (stories, PRD, etc.)
+└── README.md               # This file
+```
 
-So if you want to jump right in, here are the [Setup and Usage Instructions](./docs/instruction.md) for IDE, WEB and Task setup.
+## Setup
 
-## IDE Project Quickstart
+1.  **Clone the repository (if you haven't already):**
+    ```bash
+    git clone <your-repository-url>
+    cd project-waypoint
+    ```
+2.  **Ensure Go is installed:**
+    This project was developed with Go. If you don't have it installed, download it from [golang.org/dl](https://golang.org/dl/).
 
-Starting with the latest version of the BMad Agents for the BMad Method is very easy - all you need to do is copy `bmad-agent` folder to your project. The dedicated dev and sm that existing in previous versions are still available and are in the `bmad-agent/personas` folder with the .ide.md extension. Copy and paste the contents into your specific IDE's method of configuring a custom agent mode. The dev and sm both are configured for architecture and prd artifacts to be in (project-root)/docs and stories will be generated and developed from (project-root)/docs/stories. This will remain to be the default, but a config override will follow soon.
+## Usage
 
-For all other agent use (including the dev and sm) you can set up the [ide orchestrator](./bmad-agent/ide-bmad-orchestrator.md) - you can ask the orchestrator bmad to become any agent you have [configured](./bmad-agent/ide-bmad-orchestrator-cfg.md).
+The primary component currently is the `indexer` command-line tool.
 
-[General IDE Custom Mode Setup](./docs/ide-setup.md).
+1.  **Build the indexer:**
+    Navigate to the project root directory and run:
+    ```bash
+    go build ./cmd/indexer/main.go
+    ```
+    This will create an executable named `main` (or `main.exe` on Windows) in the project root. You might want to rename it or build it directly into a `bin` directory. A more common build pattern for the `indexer` in its own directory would be:
+    ```bash
+    cd cmd/indexer
+    go build .
+    ```
+    This will create `indexer` (or `indexer.exe`) inside `cmd/indexer/`.
 
-## Advancing AI-Driven Development
+2.  **Run the indexer:**
+    Execute the built program, providing the starting URL of a Magic Cafe sub-forum as a command-line argument.
 
-Welcome to the latest and most advanced yet easy to use version of the Web and IDE Agent Agile Workflow! This new version, called BMad Agent, represents a significant evolution that builds but vastly improves upon the foundations of [legacy V2](./legacy-archive/V2/), introducing a more refined and comprehensive suite of agents, templates, checklists, tasks - and the amazing BMad Orchestrator and Knowledge Base agent is now available - a master of every aspect of the method that can become any agent and even handle multiple tasks all within a single massive web context if so desired.
+    If you built in `cmd/indexer/`:
+    ```bash
+    ./cmd/indexer/indexer "https://www.themagiccafe.com/forums/viewforum.php?forum=54"
+    ```
+    (On Windows, use `.\cmd\indexer\indexer.exe "..."`)
 
-## What's New?
+    The tool will then output a list of all discovered page URLs for that sub-forum.
 
-All IDE Agents are now optimized to be under 6K characters, so they will work with windsurf's file limit restrictions.
+## Example Output
 
-The method now has an uber Orchestrator called BMAD - this agent will take your web or ide usage to the next level - this agent can morph and become the specific agent you want to work with! This makes Web usage super easy to use and set up. And in the IDE - you do not have to set up so many different agents if you do not want to!
+```
+2023/10/27 10:00:00 Starting sub-forum page indexer...
+2023/10/27 10:00:00 Fetching initial page: https://www.themagiccafe.com/forums/viewforum.php?forum=54
+2023/10/27 10:00:01 Parsing pagination links...
+2023/10/27 10:00:01 Discovered 64 page URLs for sub-forum:
+1: https://www.themagiccafe.com/forums/viewforum.php?forum=54
+2: https://www.themagiccafe.com/forums/viewforum.php?forum=54&start=30
+3: https://www.themagiccafe.com/forums/viewforum.php?forum=54&start=60
+...
+64: https://www.themagiccafe.com/forums/viewforum.php?forum=54&start=1890
+2023/10/27 10:00:01 Sub-forum page indexing complete.
+```
 
-There have been drastic improvements to the generation of documents and artifacts and the agents are now programmed to really help you build the best possible plans. Advanced LLM prompting techniques have been incorporated and programmed to help you help the agents produce amazing accurate artifacts, unlike anything seen before. Additionally agents are now configurable in what they can and cannot do - so you can accept the defaults, or set which personas are able to do what tasks. If you think the PO should be the one generating PRDs and the Scrum Master should be your course corrector - its all possible now! **Define agile the BMad way - or your way!**
+## Future Development
 
-While this is very powerful - you can get started with the default recommended set up as is in this repo, and basically use the agents as they are envisioned and will be explained. Detailed configuration and usage is outlined in the [Instructions](./docs/instruction.md)
+(Placeholder for future features and enhancements)
 
-## What is the BMad Method?
+## Contributing
 
-The BMad Method is a revolutionary approach that elevates "vibe coding" to advanced project planning to ensure your developer agents can start and completed advanced projects with very explicit guidance. It provides a structured yet flexible framework to plan, execute, and manage software projects using a team of specialized AI agents.
-
-This method and tooling is so much more than just a task runner - this is a refined tool that will help you bring out your best ideas, define what you really are to build, and execute on it! From ideation, to PRD creation, to the technical decision making - this will help you do it all with the power of advanced LLM guidance.
-
-The method is designed to be tool-agnostic in principle, with agent instructions and workflows adaptable to various AI platforms and IDEs.
-
-## Agile Agents
-
-Agents are programmed either directly self contained to drop right into an agent config in the ide - or they can be configured as programmable entities the orchestrating agent can become.
-
-### Web Agents
-
-Gemini 2.5 or Open AI customGPTs are created by running the node build script to generate output to a build folder. This output is the full package to create the orchestrator web agent.
-
-See the detailed [Web Orchestration Setup and Usage Instructions](./docs/instruction.md#setting-up-web-agent-orchestrator)
-
-### IDE Agents
-
-There are dedicated self contained agents that are stand alone, and also an IDE version of an orchestrator. For there standalone, there are:
-
-- [Dev IDE Agent](./bmad-agent/personas/dev.ide.md)
-- [Story Generating SM Agent](./bmad-agent/personas/sm.ide.md)
-
-If you want to use the other agents, you can use the other agents from that folder - but some will be larger than Windsurf allows - and there are many agents. So its recommended to either use 1 off tasks - OR even better - use the IDE Orchestrator Agent. See these [set up and Usage instructions for IDE Orchestrator](./docs/instruction.md#ide-agent-setup-and-usage).
-
-## Tasks
-
-Located in `bmad-agent/tasks/`, these self-contained instruction sets allow IDE agents or the orchestrators configured agents to perform specific jobs. These also can be used as one off commands with a vanilla agent in the ide by just referencing the task and asking the agent to perform it.
-
-**Purpose:**
-
-- **Reduce Agent Bloat:** Avoid adding rarely used instructions to primary agents.
-- **On-Demand Functionality:** Instruct any capable IDE agent to execute a task by providing the task file content.
-- **Versatility:** Handles specific functions like running checklists, creating stories, sharding documents, indexing libraries, etc.
-
-Think of tasks as specialized mini-agents callable by your main IDE agents.
-
-## End Matter
-
-Interested in improving the BMAD Method? See the [contributing guidelines](docs/CONTRIBUTING.md).
-
-Thank you and enjoy - BMad!
-[License](./docs/LICENSE)
+(Placeholder for contribution guidelines)
