@@ -9,6 +9,8 @@ import (
 	"strconv"
 	"strings"
 
+	"project-waypoint/internal/indexer/logger"
+
 	"github.com/PuerkitoBio/goquery"
 )
 
@@ -68,7 +70,7 @@ func ParsePaginationLinks(htmlContent string, pageURL string) ([]string, error) 
 
 		resolvedLinkURL, err := parsedCurrentURL.Parse(href)
 		if err != nil {
-			fmt.Printf("Warning: Could not parse pagination link href '%s': %v\n", href, err)
+			logger.Warnf("Could not parse pagination link href '%s': %v", href, err)
 			return
 		}
 

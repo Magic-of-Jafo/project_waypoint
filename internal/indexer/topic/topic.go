@@ -2,9 +2,11 @@ package topic
 
 import (
 	"fmt"
-	"log"
+	// "log" // Replaced by custom logger
 	"net/url"
 	"strings"
+
+	"project-waypoint/internal/indexer/logger" // Added custom logger
 
 	"github.com/PuerkitoBio/goquery"
 )
@@ -53,23 +55,19 @@ func ExtractTopics(htmlContent string, pageURL string) ([]TopicInfo, error) {
 			// Resolve the topic URL relative to the page's URL
 			topicAbsURL, err := parsedPageURL.Parse(href)
 			if err != nil {
-				// Log or handle URL parsing error
-				// For now, we skip this topic
-				log.Printf("Error parsing topic URL '%s': %v\n", href, err)
+				logger.Warnf("Error parsing topic URL '%s': %v. Skipping topic.", href, err)
 				return
 			}
 
 			u, err := url.Parse(topicAbsURL.String())
 			if err != nil {
-				// Log or handle URL parsing error
-				log.Printf("Error parsing absolute topic URL '%s': %v\n", topicAbsURL.String(), err)
+				logger.Warnf("Error parsing absolute topic URL '%s': %v. Skipping topic.", topicAbsURL.String(), err)
 				return
 			}
 			topicID := u.Query().Get("topic")
 
 			if topicID == "" {
-				// Skip if topic ID is not found
-				log.Printf("Topic ID not found for URL '%s' with title '%s'\n", topicAbsURL.String(), topicTitle)
+				logger.Warnf("Topic ID not found for URL '%s' with title '%s'. Skipping topic.", topicAbsURL.String(), topicTitle)
 				return
 			}
 
@@ -86,9 +84,10 @@ func ExtractTopics(htmlContent string, pageURL string) ([]TopicInfo, error) {
 	})
 
 	if len(topics) == 0 && err == nil {
-		// This could indicate an issue with selectors or an empty page, or a page structure change.
-		// For now, we don't treat it as an error but it might be worth logging for review.
-		log.Println("No topics found on the page. Check selectors or HTML structure.")
+		// If doc creation was fine but no topics found, it might be a selector issue or empty page.
+		// Check if the doc.Find had any matches at all to differentiate.
+		// For now, a debug or info message is fine.
+		logger.Debugf("No topics extracted from page: %s. This might be an empty page or selector mismatch.", pageURL)
 	}
 
 	return topics, nil
