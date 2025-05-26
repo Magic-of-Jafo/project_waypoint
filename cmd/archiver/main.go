@@ -6,6 +6,7 @@ import (
 	"os"
 
 	"waypoint_archive_scripts/pkg/config"
+	"waypoint_archive_scripts/pkg/state"
 )
 
 func main() {
@@ -39,10 +40,34 @@ func main() {
 	log.Printf("[INFO] Archiver starting with Politeness Delay: %s", cfg.PolitenessDelay.String())
 	log.Printf("[INFO] Archiver starting with User-Agent: %s", cfg.UserAgent)
 	log.Printf("[INFO] Archiver using Archive Root Directory: %s", cfg.ArchiveRootDir)
+	log.Printf("[INFO] Archiver using State File Path: %s", cfg.StateFilePath)
+
+	// Story 2.6: Load archival state
+	currentProgress, err := state.LoadState(cfg.StateFilePath)
+	if err != nil {
+		log.Fatalf("Critical error loading archival state from %s: %v. Exiting.", cfg.StateFilePath, err)
+	}
+
+	if currentProgress == nil {
+		log.Printf("[INFO] No previous archival state found at %s. Starting a fresh archival run.", cfg.StateFilePath)
+		// Initialize a new state if desired, or it can be created on first save
+		currentProgress = &state.ArchiveProgressState{}
+	} else {
+		log.Printf("[INFO] Resuming archival from state: Last SubForum: %s, Last Topic: %s, Last Page: %d",
+			currentProgress.LastProcessedSubForumID, currentProgress.LastProcessedTopicID, currentProgress.LastProcessedPageNumberInTopic)
+		// Story 2.6 AC11: Log when resuming and from where - (Basic logging here, detailed skipping later)
+	}
 
 	log.Println("Archiver initialized. (Further implementation pending)")
 	// Future work:
 	// Initialize Downloader with cfg
 	// Initialize Storer with cfg
-	// Loop through topics/pages to download and store
+	// Loop through topics/pages to download and store, using currentProgress to skip/resume
+	// Periodically call state.SaveState(currentProgress, cfg.StateFilePath)
+
+	// Example of saving state (e.g., at the end of a batch or successful operation)
+	// currentProgress.LastProcessedTopicID = "dummyTopic123"
+	// if err := state.SaveState(currentProgress, cfg.StateFilePath); err != nil {
+	// 	log.Printf("[ERROR] Failed to save archival state: %v", err)
+	// }
 }

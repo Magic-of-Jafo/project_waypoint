@@ -19,6 +19,7 @@ type Config struct {
 	PolitenessDelay  time.Duration `json:"politenessDelay"`
 	UserAgent        string        `json:"userAgent"`
 	ArchiveRootDir   string        `json:"archiveRootDir"` // Added for archiver, used by storer (Story 2.4)
+	StateFilePath    string        `json:"stateFilePath"`  // Added for Story 2.6
 }
 
 // DefaultConfig returns a new Config with default values.
@@ -30,6 +31,7 @@ func DefaultConfig() *Config {
 		PolitenessDelay:  3 * time.Second,            // Default politeness delay
 		UserAgent:        "WaypointArchiveAgent/1.0", // Default User-Agent
 		ArchiveRootDir:   "archive_output",           // Default archive root
+		StateFilePath:    "archive_progress.json",    // Default state file path (Story 2.6)
 	}
 }
 
@@ -70,6 +72,7 @@ func LoadConfig(arguments []string) (*Config, error) {
 	cliArchiveRootDir := configFlags.String("archiveRootDir", "", "Root directory for storing archived files")
 	cliTopicIndexDir := configFlags.String("topicIndexDir", "", "Directory for topic index CSVs")
 	cliSubForumListFile := configFlags.String("subForumListFile", "", "Path to subforum list CSV")
+	cliStateFilePath := configFlags.String("stateFilePath", "", "Path to the archive progress state file (Story 2.6)") // Added for Story 2.6
 
 	err := configFlags.Parse(arguments)
 	if err != nil {
@@ -116,6 +119,11 @@ func LoadConfig(arguments []string) (*Config, error) {
 	if userSet["subForumListFile"] && *cliSubForumListFile != "" {
 		cfg.SubForumListFile = *cliSubForumListFile
 		log.Printf("[INFO] SubForumListFile overridden by CLI flag: %s", cfg.SubForumListFile)
+	}
+
+	if userSet["stateFilePath"] && *cliStateFilePath != "" { // Added for Story 2.6
+		cfg.StateFilePath = *cliStateFilePath
+		log.Printf("[INFO] StateFilePath overridden by CLI flag: %s", cfg.StateFilePath)
 	}
 
 	return cfg, nil

@@ -33,6 +33,9 @@ func TestLoadConfig_Defaults(t *testing.T) {
 	if cfg.ArchiveRootDir != defaults.ArchiveRootDir {
 		t.Errorf("ArchiveRootDir got = %s, want %s", cfg.ArchiveRootDir, defaults.ArchiveRootDir)
 	}
+	if cfg.StateFilePath != defaults.StateFilePath {
+		t.Errorf("StateFilePath got = %s, want %s", cfg.StateFilePath, defaults.StateFilePath)
+	}
 }
 
 func TestLoadConfig_ConfigFile(t *testing.T) {
@@ -42,6 +45,7 @@ func TestLoadConfig_ConfigFile(t *testing.T) {
 		ArchiveRootDir:   "test_archive_from_config",
 		TopicIndexDir:    "test_topics_from_config",
 		SubForumListFile: "test_subforums_from_config.csv",
+		StateFilePath:    "test_statefile_from_config.json",
 	}
 
 	if err := CreateDummyConfigFile(configFile, dummyContent); err != nil {
@@ -63,6 +67,9 @@ func TestLoadConfig_ConfigFile(t *testing.T) {
 	if cfg.ArchiveRootDir != dummyContent.ArchiveRootDir {
 		t.Errorf("ArchiveRootDir got = %s, want %s", cfg.ArchiveRootDir, dummyContent.ArchiveRootDir)
 	}
+	if cfg.StateFilePath != dummyContent.StateFilePath {
+		t.Errorf("StateFilePath got = %s, want %s", cfg.StateFilePath, dummyContent.StateFilePath)
+	}
 }
 
 func TestLoadConfig_CliOverrides(t *testing.T) {
@@ -70,55 +77,69 @@ func TestLoadConfig_CliOverrides(t *testing.T) {
 	_ = RemoveDummyConfigFile(configFile)
 
 	tests := []struct {
-		name        string
-		args        []string
-		wantDelay   time.Duration
-		wantUA      string
-		wantArchive string
-		wantErr     bool   // For errors from LoadConfig itself (e.g. flag parsing error like -help)
-		wantLog     string // Substring to expect in log for bad flag value parse by LoadConfig
+		name          string
+		args          []string
+		wantDelay     time.Duration
+		wantUA        string
+		wantArchive   string
+		wantStateFile string
+		wantErr       bool   // For errors from LoadConfig itself (e.g. flag parsing error like -help)
+		wantLog       string // Substring to expect in log for bad flag value parse by LoadConfig
 	}{
 		{
-			name:        "CLI PolitenessDelay override",
-			args:        []string{"-politenessDelay=10s"},
-			wantDelay:   10 * time.Second,
-			wantUA:      DefaultConfig().UserAgent,
-			wantArchive: DefaultConfig().ArchiveRootDir,
+			name:          "CLI PolitenessDelay override",
+			args:          []string{"-politenessDelay=10s"},
+			wantDelay:     10 * time.Second,
+			wantUA:        DefaultConfig().UserAgent,
+			wantArchive:   DefaultConfig().ArchiveRootDir,
+			wantStateFile: DefaultConfig().StateFilePath,
 		},
 		{
-			name:        "CLI UserAgent override",
-			args:        []string{"-userAgent=TestAgentFromCLI/1.0"},
-			wantDelay:   DefaultConfig().PolitenessDelay,
-			wantUA:      "TestAgentFromCLI/1.0",
-			wantArchive: DefaultConfig().ArchiveRootDir,
+			name:          "CLI UserAgent override",
+			args:          []string{"-userAgent=TestAgentFromCLI/1.0"},
+			wantDelay:     DefaultConfig().PolitenessDelay,
+			wantUA:        "TestAgentFromCLI/1.0",
+			wantArchive:   DefaultConfig().ArchiveRootDir,
+			wantStateFile: DefaultConfig().StateFilePath,
 		},
 		{
-			name:        "CLI ArchiveRootDir override",
-			args:        []string{"-archiveRootDir=cli_archive_dir"},
-			wantDelay:   DefaultConfig().PolitenessDelay,
-			wantUA:      DefaultConfig().UserAgent,
-			wantArchive: "cli_archive_dir",
+			name:          "CLI ArchiveRootDir override",
+			args:          []string{"-archiveRootDir=cli_archive_dir"},
+			wantDelay:     DefaultConfig().PolitenessDelay,
+			wantUA:        DefaultConfig().UserAgent,
+			wantArchive:   "cli_archive_dir",
+			wantStateFile: DefaultConfig().StateFilePath,
 		},
 		{
-			name:        "CLI all overrides",
-			args:        []string{"-politenessDelay=1s", "-userAgent=FullCLI/1.0", "-archiveRootDir=all_cli"},
-			wantDelay:   1 * time.Second,
-			wantUA:      "FullCLI/1.0",
-			wantArchive: "all_cli",
+			name:          "CLI StateFilePath override",
+			args:          []string{"-stateFilePath=cli_state.json"},
+			wantDelay:     DefaultConfig().PolitenessDelay,
+			wantUA:        DefaultConfig().UserAgent,
+			wantArchive:   DefaultConfig().ArchiveRootDir,
+			wantStateFile: "cli_state.json",
 		},
 		{
-			name:        "CLI invalid politenessDelay format",
-			args:        []string{"-politenessDelay=invalid"},
-			wantDelay:   DefaultConfig().PolitenessDelay, // Should use default/previous value
-			wantUA:      DefaultConfig().UserAgent,
-			wantArchive: DefaultConfig().ArchiveRootDir,
-			wantErr:     false, // LoadConfig logs warning for parse duration error, doesn't return error for it
-			wantLog:     "Invalid politenessDelay format from CLI",
+			name:          "CLI all overrides",
+			args:          []string{"-politenessDelay=1s", "-userAgent=FullCLI/1.0", "-archiveRootDir=all_cli", "-stateFilePath=all_cli.json"},
+			wantDelay:     1 * time.Second,
+			wantUA:        "FullCLI/1.0",
+			wantArchive:   "all_cli",
+			wantStateFile: "all_cli.json",
+		},
+		{
+			name:          "CLI invalid politenessDelay format",
+			args:          []string{"-politenessDelay=invalid"},
+			wantDelay:     DefaultConfig().PolitenessDelay,
+			wantUA:        DefaultConfig().UserAgent,
+			wantArchive:   DefaultConfig().ArchiveRootDir,
+			wantStateFile: DefaultConfig().StateFilePath,
+			wantErr:       false,
+			wantLog:       "Invalid politenessDelay format from CLI",
 		},
 		{
 			name:    "CLI help flag",
 			args:    []string{"-help"},
-			wantErr: true, // LoadConfig should return flag.ErrHelp wrapped
+			wantErr: true,
 		},
 	}
 
@@ -132,7 +153,6 @@ func TestLoadConfig_CliOverrides(t *testing.T) {
 			if (err != nil) != tt.wantErr {
 				t.Fatalf("LoadConfig(%v) error = %v, wantErr %v", tt.args, err, tt.wantErr)
 			}
-			// If we expect an error (like -help), cfg might be nil or partially populated, so only check further if no error expected.
 			if !tt.wantErr {
 				if cfg.PolitenessDelay != tt.wantDelay {
 					t.Errorf("PolitenessDelay got = %v, want %v", cfg.PolitenessDelay, tt.wantDelay)
@@ -142,6 +162,9 @@ func TestLoadConfig_CliOverrides(t *testing.T) {
 				}
 				if cfg.ArchiveRootDir != tt.wantArchive {
 					t.Errorf("ArchiveRootDir got = %s, want %s", cfg.ArchiveRootDir, tt.wantArchive)
+				}
+				if cfg.StateFilePath != tt.wantStateFile {
+					t.Errorf("StateFilePath got = %s, want %s", cfg.StateFilePath, tt.wantStateFile)
 				}
 			}
 			if tt.wantLog != "" && !strings.Contains(logBuf.String(), tt.wantLog) {
@@ -158,6 +181,7 @@ func TestLoadConfig_ConfigFileAndCliOverrides(t *testing.T) {
 		ArchiveRootDir:   "config_archive",
 		TopicIndexDir:    "config_topics",
 		SubForumListFile: "config_subforums.csv",
+		StateFilePath:    "config_state.json",
 	}
 
 	if err := CreateDummyConfigFile(configFile, configFileContent); err != nil {
@@ -168,6 +192,7 @@ func TestLoadConfig_ConfigFileAndCliOverrides(t *testing.T) {
 	cliArgs := []string{
 		"-politenessDelay=15s",
 		"-userAgent=OverrideAgentFromCLI/2.0",
+		"-stateFilePath=override_cli_state.json",
 	}
 
 	cfg, err := LoadConfig(cliArgs)
@@ -177,7 +202,8 @@ func TestLoadConfig_ConfigFileAndCliOverrides(t *testing.T) {
 
 	wantDelay := 15 * time.Second
 	wantUA := "OverrideAgentFromCLI/2.0"
-	wantArchive := configFileContent.ArchiveRootDir // Should remain from config file
+	wantArchive := configFileContent.ArchiveRootDir
+	wantStateFile := "override_cli_state.json"
 
 	if cfg.PolitenessDelay != wantDelay {
 		t.Errorf("PolitenessDelay got = %v, want %v", cfg.PolitenessDelay, wantDelay)
@@ -188,20 +214,22 @@ func TestLoadConfig_ConfigFileAndCliOverrides(t *testing.T) {
 	if cfg.ArchiveRootDir != wantArchive {
 		t.Errorf("ArchiveRootDir got = %s, want %s", cfg.ArchiveRootDir, wantArchive)
 	}
-	// Check that other values are still from config file
+	if cfg.StateFilePath != wantStateFile {
+		t.Errorf("StateFilePath got = %s, want %s", cfg.StateFilePath, wantStateFile)
+	}
 	if cfg.TopicIndexDir != configFileContent.TopicIndexDir {
 		t.Errorf("TopicIndexDir got = %s, want %s", cfg.TopicIndexDir, configFileContent.TopicIndexDir)
 	}
 }
 
 func TestLoadConfig_MalformedConfigFile(t *testing.T) {
-	malformedFilePath := configFile // Use the actual config file name for the test
+	malformedFilePath := configFile
 	malformedContent := []byte("{\"politenessDelay\": \"5s\", userAgent: \"UnquotedKey\"}")
 
 	if err := os.WriteFile(malformedFilePath, malformedContent, 0644); err != nil {
 		t.Fatalf("Failed to create malformed config file: %v", err)
 	}
-	defer os.Remove(malformedFilePath) // Clean up the malformed file
+	defer os.Remove(malformedFilePath)
 
 	var logBuf strings.Builder
 	log.SetOutput(&logBuf)
@@ -221,15 +249,9 @@ func TestLoadConfig_MalformedConfigFile(t *testing.T) {
 	}
 }
 
-// TestMain can be simplified or removed if only used for flag reset and os.Args backup
-// It's still useful for global test setup/teardown like cleaning files.
 func TestMain(m *testing.M) {
-	// Clean up any potential dummy config file before and after tests
-	defer RemoveDummyConfigFile(configFile) // Ensure cleanup after all tests in package
-	RemoveDummyConfigFile(configFile)       // Before any test runs
-
-	// For specific test files created by tests, they should manage their own lifecycle
-	// or be cleaned here if names are predictable and shared.
+	defer RemoveDummyConfigFile(configFile)
+	RemoveDummyConfigFile(configFile)
 
 	code := m.Run()
 	os.Exit(code)
