@@ -59,7 +59,7 @@ func performFullScan(baseURL string, requestDelayMs int, tracker *metrics.Metric
 	logger.Infof("Full Scan: Fetching initial page to discover all page URLs: %s", baseURL)
 
 	tracker.IncrementHTTPRequests() // Track request for initial page
-	initialHTMLContent, err := navigation.FetchHTML(baseURL)
+	initialHTMLContent, err := navigation.FetchHTML(baseURL, time.Duration(requestDelayMs)*time.Millisecond)
 	if err != nil {
 		tracker.IncrementFailedRequests()
 		return nil, nil, fmt.Errorf("full scan: failed to fetch HTML from %s: %w", baseURL, err)
@@ -94,7 +94,7 @@ func performFullScan(baseURL string, requestDelayMs int, tracker *metrics.Metric
 		logger.Infof("Full Scan: Processing page %d/%d: %s", pageCounter, len(pageURLs), pageURL)
 
 		tracker.IncrementHTTPRequests() // Track request for each page in loop
-		htmlContent, err := navigation.FetchHTML(pageURL)
+		htmlContent, err := navigation.FetchHTML(pageURL, time.Duration(requestDelayMs)*time.Millisecond)
 		if err != nil {
 			tracker.IncrementFailedRequests()
 			logger.Warnf("Full Scan: Error fetching HTML from %s: %v. Skipping this page.", pageURL, err)
@@ -212,7 +212,7 @@ func main() {
 		time.Sleep(time.Duration(cfg.requestDelay) * time.Millisecond)
 
 		tracker.IncrementHTTPRequests() // Track request for first-page re-scan
-		firstPageHTML, err := navigation.FetchHTML(firstPageURL)
+		firstPageHTML, err := navigation.FetchHTML(firstPageURL, time.Duration(cfg.requestDelay)*time.Millisecond)
 		if err != nil {
 			tracker.IncrementFailedRequests()
 			logger.Warnf("Orchestrator: Warning - Failed to fetch first page for re-scan (%s): %v. Proceeding with full scan results only.", firstPageURL, err)
