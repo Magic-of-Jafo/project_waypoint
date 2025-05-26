@@ -45,6 +45,7 @@
     * Logging the problematic URL and the received HTTP status code.
     * Following the defined retry strategy (if applicable for the error type, as per Story 2.5 and `docs/operational-guidelines.md`) or gracefully skipping the page and marking it as problematic for this run.
 8.  **AC8:** The "polite scraping" mechanisms (such as configured delays *before* making the request and sending the custom User-Agent string, as defined in Story 2.5) MUST be respected by this download functionality.
+    *   ***Note for Scrum Master/Dev for Story 2.3:*** *Ensure that the `PolitenessDelay` configured in `pkg/config/config.go` (and intended to be populated from CLI flags/Story 2.5) is correctly passed to and utilized by the HTML fetching mechanism used in this story.* 
 9.  **AC9:** The successfully downloaded raw HTML content for a page MUST be made available as output (e.g., as a string or byte slice/array in Go) to be consumed by the next module responsible for file storage (Story 2.4).
 
 ---

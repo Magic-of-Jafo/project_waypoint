@@ -1,11 +1,23 @@
 package config
 
+import "time"
+
 // Config holds the application configuration.
-// For now, it primarily stores the path to the topic index data.
-// This will be expanded for other configurable parameters.
+// For now, it's basic. It can be expanded to load from a file or env vars.
 type Config struct {
-	TopicIndexDir    string // Directory containing topic_index_{subforum_id}.csv files
-	SubForumListFile string // Path to data/subforum_list.csv
+	TopicIndexDir    string        // Directory containing topic_index_*.csv files
+	SubForumListFile string        // Path to the subforum_list.csv file
+	PolitenessDelay  time.Duration // Delay between HTTP requests for politeness
+}
+
+// DefaultConfig returns a new Config with default values.
+// These would typically be paths within a data directory.
+func DefaultConfig() *Config {
+	return &Config{
+		TopicIndexDir:    "data/topic_indices",
+		SubForumListFile: "data/subforum_list.csv",
+		PolitenessDelay:  3 * time.Second, // Default politeness delay
+	}
 }
 
 // LoadConfig loads the application configuration.
