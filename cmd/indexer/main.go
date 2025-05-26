@@ -143,7 +143,18 @@ func main() {
 		log.Fatalf("Failed to create output directory %s: %v", cfg.outputDir, err)
 	}
 
-	logFilePath := filepath.Join(cfg.outputDir, "indexer_run_forum48.log")
+	// Determine log file name based on sub-forum ID
+	forumIDForLog, err := storage.ExtractSubForumID(cfg.subForumURL)
+	if err != nil {
+		logger.Warnf("Could not parse URL '%s' for log file naming: %v. Using 'unknownforum_parse_error' as fallback.", cfg.subForumURL, err)
+		forumIDForLog = "unknownforum_parse_error"
+	} else if forumIDForLog == "" {
+		logger.Warnf("Could not extract forum ID from URL '%s' for log file naming (query param missing). Using 'unknownforum_no_id' as fallback.", cfg.subForumURL)
+		forumIDForLog = "unknownforum_no_id"
+	}
+	logFileName := fmt.Sprintf("indexer_run_sf_%s.log", forumIDForLog)
+	logFilePath := filepath.Join(cfg.outputDir, logFileName)
+
 	logFile, err := os.OpenFile(logFilePath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0660)
 	if err != nil {
 		// Fallback to stderr only if file opening fails
