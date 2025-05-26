@@ -9,7 +9,7 @@ import (
 	"strconv"
 	"strings"
 
-	"project-waypoint/internal/indexer/logger"
+	"waypoint_archive_scripts/internal/indexer/logger"
 
 	"github.com/PuerkitoBio/goquery"
 )

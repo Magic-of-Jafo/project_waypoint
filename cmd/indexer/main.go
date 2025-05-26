@@ -11,11 +11,11 @@ import (
 
 	// "sort" // Will be needed later for ordered output if desired
 
-	"project-waypoint/internal/indexer/logger"  // Added custom logger
-	"project-waypoint/internal/indexer/metrics" // Added for performance tracking
-	"project-waypoint/internal/indexer/navigation"
-	"project-waypoint/internal/indexer/storage" // Added for saving topic index
-	"project-waypoint/internal/indexer/topic"
+	"waypoint_archive_scripts/internal/indexer/logger"  // Corrected
+	"waypoint_archive_scripts/internal/indexer/metrics" // Corrected
+	"waypoint_archive_scripts/internal/indexer/navigation"
+	"waypoint_archive_scripts/internal/indexer/storage" // Corrected
+	"waypoint_archive_scripts/internal/indexer/topic"   // Corrected
 )
 
 // Configuration struct to hold all configurable parameters

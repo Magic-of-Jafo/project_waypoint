@@ -6,7 +6,7 @@ import (
 	"net/url"
 	"strings"
 
-	"project-waypoint/internal/indexer/logger" // Added custom logger
+	"waypoint_archive_scripts/internal/indexer/logger" // Corrected
 
 	"github.com/PuerkitoBio/goquery"
 )
@@ -31,7 +31,7 @@ func ExtractTopics(htmlContent string, pageURL string) ([]TopicInfo, error) {
 		return nil, fmt.Errorf("failed to parse page URL %s: %w", pageURL, err)
 	}
 
-	var topics []TopicInfo
+	var topics []TopicInfo = make([]TopicInfo, 0)
 	seenTopicIDs := make(map[string]bool)
 
 	// Topics are in <tr> elements. The relevant <a> tag is usually within the second <td>.
@@ -83,7 +83,7 @@ func ExtractTopics(htmlContent string, pageURL string) ([]TopicInfo, error) {
 		})
 	})
 
-	if len(topics) == 0 && err == nil {
+	if len(topics) == 0 {
 		// If doc creation was fine but no topics found, it might be a selector issue or empty page.
 		// Check if the doc.Find had any matches at all to differentiate.
 		// For now, a debug or info message is fine.

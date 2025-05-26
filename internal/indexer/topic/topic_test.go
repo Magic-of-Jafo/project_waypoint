@@ -71,11 +71,11 @@ func TestExtractTopics(t *testing.T) {
 			wantErr:     false,
 		},
 		{
-			name:        "malformed html",
+			name:        "resilient to minor malformed html",
 			pageURL:     pageBaseURL,
 			htmlContent: `<<<<<>>>>>`,
-			wantTopics:  nil, // goquery.NewDocumentFromReader will error
-			wantErr:     true,
+			wantTopics:  []TopicInfo{},
+			wantErr:     false,
 		},
 		{
 			name:    "duplicate topic ID on page",

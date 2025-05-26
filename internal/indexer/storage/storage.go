@@ -8,8 +8,8 @@ import (
 	"path/filepath"
 	"sort"
 
-	"project-waypoint/internal/indexer/logger"
-	"project-waypoint/internal/indexer/topic"
+	"waypoint_archive_scripts/internal/indexer/logger"
+	"waypoint_archive_scripts/internal/indexer/topic"
 )
 
 // ExtractSubForumID attempts to get a forum ID from the URL query string.

@@ -5,7 +5,7 @@ import (
 	"sync"
 	"time"
 
-	"project-waypoint/internal/indexer/logger" // Added custom logger
+	"waypoint_archive_scripts/internal/indexer/logger" // Corrected
 )
 
 // MetricsTracker holds performance metrics for an indexing run.
