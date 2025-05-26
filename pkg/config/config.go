@@ -14,24 +14,26 @@ import (
 // Config holds the application configuration.
 // For now, it's basic. It can be expanded to load from a file or env vars.
 type Config struct {
-	TopicIndexDir    string        `json:"topicIndexDir"`
-	SubForumListFile string        `json:"subForumListFile"`
-	PolitenessDelay  time.Duration `json:"politenessDelay"`
-	UserAgent        string        `json:"userAgent"`
-	ArchiveRootDir   string        `json:"archiveRootDir"` // Added for archiver, used by storer (Story 2.4)
-	StateFilePath    string        `json:"stateFilePath"`  // Added for Story 2.6
+	TopicIndexDir      string        `json:"topicIndexDir"`
+	SubForumListFile   string        `json:"subForumListFile"`
+	PolitenessDelay    time.Duration `json:"politenessDelay"`
+	UserAgent          string        `json:"userAgent"`
+	ArchiveRootDir     string        `json:"archiveRootDir"` // Added for archiver, used by storer (Story 2.4)
+	StateFilePath      string        `json:"stateFilePath"`  // Added for Story 2.6
+	PerformanceLogPath string        `json:"performance_log_path"`
 }
 
 // DefaultConfig returns a new Config with default values.
 // These would typically be paths within a data directory.
 func DefaultConfig() *Config {
 	return &Config{
-		TopicIndexDir:    "data/topic_indices",
-		SubForumListFile: "data/subforum_list.csv",
-		PolitenessDelay:  3 * time.Second,            // Default politeness delay
-		UserAgent:        "WaypointArchiveAgent/1.0", // Default User-Agent
-		ArchiveRootDir:   "archive_output",           // Default archive root
-		StateFilePath:    "archive_progress.json",    // Default state file path (Story 2.6)
+		TopicIndexDir:      "data/topic_indices",
+		SubForumListFile:   "data/subforum_list.csv",
+		PolitenessDelay:    3 * time.Second,            // Default politeness delay
+		UserAgent:          "WaypointArchiveAgent/1.0", // Default User-Agent
+		ArchiveRootDir:     "archive_output",           // Default archive root
+		StateFilePath:      "archive_progress.json",    // Default state file path (Story 2.6)
+		PerformanceLogPath: "logs/performance_log.csv",
 	}
 }
 
