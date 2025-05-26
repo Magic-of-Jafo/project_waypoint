@@ -6,7 +6,7 @@ import (
 	"net/url"
 	"strings"
 
-	"waypoint_archive_scripts/internal/indexer/logger" // Corrected
+	"project-waypoint/internal/indexer/logger" // Corrected to project-waypoint module
 
 	"github.com/PuerkitoBio/goquery"
 )
