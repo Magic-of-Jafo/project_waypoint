@@ -8,6 +8,7 @@ type Config struct {
 	TopicIndexDir    string        // Directory containing topic_index_*.csv files
 	SubForumListFile string        // Path to the subforum_list.csv file
 	PolitenessDelay  time.Duration // Delay between HTTP requests for politeness
+	UserAgent        string        // Custom User-Agent string for HTTP requests
 }
 
 // DefaultConfig returns a new Config with default values.
@@ -16,7 +17,8 @@ func DefaultConfig() *Config {
 	return &Config{
 		TopicIndexDir:    "data/topic_indices",
 		SubForumListFile: "data/subforum_list.csv",
-		PolitenessDelay:  3 * time.Second, // Default politeness delay
+		PolitenessDelay:  3 * time.Second,            // Default politeness delay
+		UserAgent:        "WaypointArchiveAgent/1.0", // Default User-Agent
 	}
 }
 
@@ -31,6 +33,8 @@ func LoadConfig() (*Config, error) {
 	cfg := &Config{
 		TopicIndexDir:    "./data/topic_indices",     // Example path
 		SubForumListFile: "./data/subforum_list.csv", // Example path
+		PolitenessDelay:  3 * time.Second,            // Default politeness delay, can be overridden
+		UserAgent:        "WaypointArchiveAgent/1.0", // Default User-Agent, can be overridden
 	}
 	return cfg, nil
 }
