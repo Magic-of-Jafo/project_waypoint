@@ -9,6 +9,8 @@ import (
 
 	"waypoint_archive_scripts/pkg/config"
 	"waypoint_archive_scripts/pkg/data"
+	"waypoint_archive_scripts/pkg/htmlutil" // New import
+	"waypoint_archive_scripts/pkg/state"    // For ShouldPerformJITRefresh
 	// New import
 )
 
@@ -32,14 +34,49 @@ type ParsePaginationLinker func(htmlContent string, pageURL string) ([]string, e
 // Returns slice of data.Topic and error
 type ExtractTopicser func(htmlContent string, pageURL string, subForumID string) ([]data.Topic, error)
 
+// ShouldPerformJITRefresh determines if a JIT refresh should be performed for a sub-forum.
+// It checks if JIT refresh is enabled (jitRefreshPages > 0) and if the JITRefreshInterval
+// has passed since the last attempt for this sub-forum.
+func ShouldPerformJITRefresh(
+	subForum data.SubForum,
+	currentState *state.ArchiveProgressState,
+	jitEnabled bool, // True if cfg.JITRefreshPages > 0
+	jitInterval time.Duration,
+) bool {
+	if !jitEnabled {
+		log.Printf("[DEBUG] JIT REFRESH: Skipping JIT for SubForum %s, JITRefreshPages is not positive.", subForum.ID)
+		return false
+	}
+
+	if currentState == nil || currentState.JITRefreshAttempts == nil {
+		log.Printf("[INFO] JIT REFRESH: No previous JIT attempt state for SubForum %s. Performing refresh.", subForum.ID)
+		return true // No record of last attempt, or state is nil, so refresh.
+	}
+
+	lastAttemptTime, ok := currentState.JITRefreshAttempts[subForum.ID]
+	if !ok {
+		log.Printf("[INFO] JIT REFRESH: No JIT refresh attempt recorded for SubForum %s. Performing refresh.", subForum.ID)
+		return true // No attempt recorded for this specific sub-forum.
+	}
+
+	if time.Since(lastAttemptTime) >= jitInterval {
+		log.Printf("[INFO] JIT REFRESH: JIT refresh interval (%s) has passed for SubForum %s (last attempt: %s). Performing refresh.", jitInterval, subForum.ID, lastAttemptTime)
+		return true
+	}
+
+	log.Printf("[DEBUG] JIT REFRESH: JIT refresh interval (%s) has NOT passed for SubForum %s (last attempt: %s). Skipping refresh.", jitInterval, subForum.ID, lastAttemptTime)
+	return false
+}
+
 // PerformJITRefresh fetches the first few pages of a sub-forum, parses live topic IDs,
 // compares them against the loaded index, and returns newly discovered topics.
+// It now uses interfaces from the htmlutil package.
 func PerformJITRefresh(
 	subForumData data.SubForum,
-	cfg *config.Config,
-	fetcher FetchHTMLer,
-	parser ParsePaginationLinker,
-	extractor ExtractTopicser,
+	cfg *config.Config, // cfg is used for PolitenessDelay, UserAgent, JITRefreshPages
+	fetcher htmlutil.FetchHTMLer,
+	parser htmlutil.ParsePaginationLinker,
+	extractor htmlutil.ExtractTopicser,
 ) ([]data.Topic, error) {
 
 	log.Printf("[INFO] JIT REFRESH: Starting for SubForum: %s (ID: %s, URL: %s), JITRefreshPages: %d",
@@ -51,6 +88,8 @@ func PerformJITRefresh(
 	}
 
 	if cfg.JITRefreshPages <= 0 {
+		// This check is technically redundant if ShouldPerformJITRefresh is called first,
+		// but good for robustness if PerformJITRefresh is called directly.
 		log.Printf("[INFO] JIT REFRESH: JITRefreshPages is %d for SubForum %s. Skipping JIT scan.", cfg.JITRefreshPages, subForumData.ID)
 		return []data.Topic{}, nil
 	}
@@ -60,13 +99,15 @@ func PerformJITRefresh(
 
 	// Process the initial page first
 	log.Printf("[DEBUG] JIT REFRESH: Fetching and processing initial page: %s", subForumData.URL)
-	initialPageHTML, err := fetcher(subForumData.URL, cfg.PolitenessDelay, cfg.UserAgent)
+	// Use the FetchHTML method from the fetcher interface
+	initialPageHTML, err := fetcher.FetchHTML(subForumData.URL)
 	if err != nil {
 		log.Printf("[ERROR] JIT REFRESH: Failed to fetch initial page %s for sub-forum %s: %v", subForumData.URL, subForumData.ID, err)
 		return nil, err // Critical if the first page can't be fetched
 	}
 
-	liveTopicsOnInitialPage, err := extractor(initialPageHTML, subForumData.URL, subForumData.ID)
+	// Use the ExtractTopics method from the extractor interface
+	liveTopicsOnInitialPage, err := extractor.ExtractTopics(initialPageHTML, subForumData.URL, subForumData.ID)
 	if err != nil {
 		log.Printf("[WARNING] JIT REFRESH: Failed to extract topics from initial page %s for sub-forum %s: %v. Continuing with pagination scan if possible.", subForumData.URL, subForumData.ID, err)
 		// Not returning error here, as pagination might still yield results from other pages
@@ -81,7 +122,8 @@ func PerformJITRefresh(
 		log.Printf("[INFO] JIT REFRESH: Reached JITRefreshPages limit (%d) after processing initial page for sub-forum %s. Stopping scan.", cfg.JITRefreshPages, subForumData.ID)
 	} else {
 		log.Printf("[DEBUG] JIT REFRESH: Parsing pagination links from initial page HTML of %s", subForumData.URL)
-		subForumPageURLs, err := parser(initialPageHTML, subForumData.URL)
+		// Use the ParsePaginationLinks method from the parser interface
+		subForumPageURLs, err := parser.ParsePaginationLinks(initialPageHTML, subForumData.URL)
 		if err != nil {
 			log.Printf("[ERROR] JIT REFRESH: Failed to parse pagination links for sub-forum %s (URL: %s): %v. Proceeding with topics found so far (if any).", subForumData.ID, subForumData.URL, err)
 			// Don't return error, as we might have topics from the initial page.
@@ -101,13 +143,15 @@ func PerformJITRefresh(
 				log.Printf("[DEBUG] JIT REFRESH: Scanning paginated page %d/%d (URL: %s) for sub-forum %s", i+1, len(subForumPageURLs), pageURL, subForumData.ID)
 				scannedPageCount++
 
-				pageHTML, err := fetcher(pageURL, cfg.PolitenessDelay, cfg.UserAgent)
+				// Use FetchHTML method
+				pageHTML, err := fetcher.FetchHTML(pageURL)
 				if err != nil {
 					log.Printf("[WARNING] JIT REFRESH: Failed to fetch page %s for sub-forum %s: %v. Skipping page.", pageURL, subForumData.ID, err)
 					continue
 				}
 
-				liveTopicsOnPage, err := extractor(pageHTML, pageURL, subForumData.ID)
+				// Use ExtractTopics method
+				liveTopicsOnPage, err := extractor.ExtractTopics(pageHTML, pageURL, subForumData.ID)
 				if err != nil {
 					log.Printf("[WARNING] JIT REFRESH: Failed to extract topics from page %s for sub-forum %s: %v. Skipping page.", pageURL, subForumData.ID, err)
 					continue

@@ -2,6 +2,7 @@ package indexerlogic
 
 import (
 	"encoding/csv"
+	"encoding/json"
 	"fmt"
 	"io"
 	"log"
@@ -148,4 +149,45 @@ func ReadSubForumListCSV(filePath string) (map[string]SubForumNameAndURL, error)
 	}
 	log.Printf("[INFO] ReadSubForumListCSV: successfully read %d subforum entries from %s", len(subForumsMap), filePath)
 	return subForumsMap, nil
+}
+
+// ReadTopicIndexJSON reads a single topic index JSON file and returns a slice of Topic structs.
+// It assumes the JSON file contains an array of Topic objects.
+func ReadTopicIndexJSON(filePath string, subForumID string) ([]data.Topic, error) {
+	file, err := os.Open(filePath)
+	if err != nil {
+		// Check if the error is because the file doesn't exist, which is a common case for optional indices.
+		if os.IsNotExist(err) {
+			log.Printf("[INFO] ReadTopicIndexJSON: file not found %s (this may be expected for some sub-forums).", filePath)
+			return []data.Topic{}, nil // Return empty slice, not an error, if file simply doesn't exist.
+		}
+		log.Printf("[ERROR] ReadTopicIndexJSON: failed to open file %s: %v", filePath, err)
+		return nil, fmt.Errorf("ReadTopicIndexJSON: failed to open file %s: %w", filePath, err)
+	}
+	defer file.Close()
+
+	bytes, err := io.ReadAll(file)
+	if err != nil {
+		log.Printf("[ERROR] ReadTopicIndexJSON: failed to read file content from %s: %v", filePath, err)
+		return nil, fmt.Errorf("ReadTopicIndexJSON: failed to read file content from %s: %w", filePath, err)
+	}
+
+	if len(bytes) == 0 {
+		log.Printf("[INFO] ReadTopicIndexJSON: file %s is empty.", filePath)
+		return []data.Topic{}, nil
+	}
+
+	var topics []data.Topic
+	if err := json.Unmarshal(bytes, &topics); err != nil {
+		log.Printf("[ERROR] ReadTopicIndexJSON: failed to unmarshal JSON from %s: %v", filePath, err)
+		return nil, fmt.Errorf("ReadTopicIndexJSON: failed to unmarshal JSON from %s: %w", filePath, err)
+	}
+
+	// Ensure SubForumID is set for each topic, as it might not be in the JSON file itself.
+	for i := range topics {
+		topics[i].SubForumID = subForumID
+	}
+
+	log.Printf("[INFO] ReadTopicIndexJSON: successfully read %d topics from %s", len(topics), filePath)
+	return topics, nil
 }

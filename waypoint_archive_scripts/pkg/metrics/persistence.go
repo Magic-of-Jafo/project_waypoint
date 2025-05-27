@@ -368,3 +368,21 @@ func DisplayCurrentETC_Placeholder() {
 	// A real implementation would use perfLogger or a BatchMetrics instance.
 	log.Printf("[INFO] METRICS_PLACEHOLDER: Would display current ETC and processing rates.")
 }
+
+// AppendDetailMetric provides a global way to append a detailed performance metric.
+func AppendDetailMetric(metric PerformanceMetric) {
+	if perfLogger == nil {
+		log.Println("[ERROR] METRICS: Global performance logger not initialized. Cannot append metric.")
+		return
+	}
+	perfLogger.AppendMetric(metric)
+}
+
+// SaveDetailMetricsLog provides a global way to save all buffered detailed metrics.
+func SaveDetailMetricsLog() error {
+	if perfLogger == nil {
+		log.Println("[ERROR] METRICS: Global performance logger not initialized. Cannot save metrics.")
+		return fmt.Errorf("global performance logger not initialized")
+	}
+	return perfLogger.SaveMetrics()
+}

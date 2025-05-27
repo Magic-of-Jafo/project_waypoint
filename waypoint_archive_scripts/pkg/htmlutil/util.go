@@ -16,8 +16,94 @@ import (
 	"waypoint_archive_scripts/pkg/data"
 )
 
+// FetchHTMLer defines the interface for fetching HTML content.
+type FetchHTMLer interface {
+	FetchHTML(pageURL string) (string, error)
+}
+
+// ParsePaginationLinker defines the interface for parsing pagination links.
+type ParsePaginationLinker interface {
+	ParsePaginationLinks(htmlContent string, basePageURL string) ([]string, error)
+}
+
+// ExtractTopicser defines the interface for extracting topics from HTML.
+type ExtractTopicser interface {
+	ExtractTopics(htmlContent string, pageURL string, subForumID string) ([]data.Topic, error)
+}
+
+// DefaultHTMLUtil provides default implementations for HTML utility interfaces.
+type DefaultHTMLUtil struct {
+	UserAgent       string
+	PolitenessDelay time.Duration
+	ForumBaseURL    string // Used by pagination and topic extraction to resolve relative URLs
+}
+
+// NewHTMLUtil is a constructor for DefaultHTMLUtil.
+// It can serve as a provider for all three interfaces if needed,
+// or specific constructors can be used.
+func NewHTMLUtil(userAgent string, politenessDelay time.Duration, forumBaseURL string) *DefaultHTMLUtil {
+	return &DefaultHTMLUtil{
+		UserAgent:       userAgent,
+		PolitenessDelay: politenessDelay,
+		ForumBaseURL:    forumBaseURL,
+	}
+}
+
+// FetchHTML implements the FetchHTMLer interface.
+func (h *DefaultHTMLUtil) FetchHTML(pageURL string) (string, error) {
+	// Call the original standalone FetchHTML function, passing configured values.
+	return FetchHTML(pageURL, h.PolitenessDelay, h.UserAgent)
+}
+
+// ParsePaginationLinks implements the ParsePaginationLinker interface.
+func (h *DefaultHTMLUtil) ParsePaginationLinks(htmlContent string, basePageURL string) ([]string, error) {
+	// The ForumBaseURL from the struct h might be more reliable if basePageURL is not absolute or incorrect.
+	// For now, directly using the original ParsePaginationLinks logic which uses basePageURL for resolution.
+	// If h.ForumBaseURL is intended to be the definitive base, the standalone ParsePaginationLinks function might need adjustment
+	// or this wrapper could try to use h.ForumBaseURL to create a more reliable basePageURL if the provided one is relative.
+	// For now, assume basePageURL is the one to use and is correctly formed by the caller.
+	return ParsePaginationLinks(htmlContent, basePageURL) // Calling the standalone version
+}
+
+// ExtractTopics implements the ExtractTopicser interface.
+func (h *DefaultHTMLUtil) ExtractTopics(htmlContent string, pageURL string, subForumID string) ([]data.Topic, error) {
+	// Similar to ParsePaginationLinks, this calls the standalone function.
+	// If h.ForumBaseURL is relevant for resolving URLs inside topic extraction, the standalone
+	// ExtractTopicsFromHTMLInUtil should be made aware of it (e.g. by passing h.ForumBaseURL to it if it were modified to accept it)
+	// or this wrapper could pre-process URLs if necessary.
+	// For now, calling the existing standalone function directly.
+	return ExtractTopicsFromHTMLInUtil(htmlContent, pageURL, subForumID) // Calling the standalone version
+}
+
+// NewHTMLFetcher is a constructor for a FetchHTMLer.
+func NewHTMLFetcher(userAgent string, politenessDelay time.Duration) FetchHTMLer {
+	return &DefaultHTMLUtil{
+		UserAgent:       userAgent,
+		PolitenessDelay: politenessDelay,
+		// ForumBaseURL is not strictly needed for FetchHTMLer alone, so it can be empty here.
+	}
+}
+
+// NewPaginationParser is a constructor for a ParsePaginationLinker.
+func NewPaginationParser(forumBaseURL string) ParsePaginationLinker {
+	return &DefaultHTMLUtil{
+		ForumBaseURL: forumBaseURL,
+		// UserAgent and PolitenessDelay are not strictly needed for ParsePaginationLinker alone.
+	}
+}
+
+// NewTopicExtractor is a constructor for an ExtractTopicser.
+func NewTopicExtractor(forumBaseURL string) ExtractTopicser {
+	return &DefaultHTMLUtil{
+		ForumBaseURL: forumBaseURL,
+		// UserAgent and PolitenessDelay are not strictly needed for ExtractTopicser alone.
+	}
+}
+
 // FetchHTML retrieves the HTML content from a given URL with a politeness delay.
 // It attempts to handle character encoding.
+// THIS IS THE ORIGINAL STANDALONE FUNCTION - kept for reference or direct use if needed.
+// The DefaultHTMLUtil.FetchHTML method is the new primary way when using the interface.
 func FetchHTML(pageURL string, delay time.Duration, userAgent string) (string, error) {
 	if delay > 0 {
 		log.Printf("[DEBUG] FetchHTML: Applying politeness delay of %v for URL: %s", delay, pageURL)
@@ -79,15 +165,18 @@ func FetchHTML(pageURL string, delay time.Duration, userAgent string) (string, e
 
 // ParsePaginationLinks extracts all unique pagination links from HTML content.
 // It assumes pagination links are within a common structure (e.g., div.pagination a).
-func ParsePaginationLinks(htmlContent string, pageURL string) ([]string, error) {
-	doc, err := goquery.NewDocumentFromReader(strings.NewReader(htmlContent))
+// THIS IS THE ORIGINAL STANDALONE FUNCTION.
+func ParsePaginationLinks(pageHTML string, basePageURL string) ([]string, error) {
+	// log.Printf("[DEBUG_HTML] ParsePaginationLinks: Received HTML for %s:\n%s\n[END_DEBUG_HTML]", basePageURL, pageHTML) // HTML dump removed
+
+	doc, err := goquery.NewDocumentFromReader(strings.NewReader(pageHTML))
 	if err != nil {
-		return nil, fmt.Errorf("ParsePaginationLinks: failed to create goquery document for %s: %w", pageURL, err)
+		return nil, fmt.Errorf("ParsePaginationLinks: failed to create goquery document for %s: %w", basePageURL, err)
 	}
 
-	parsedPageURL, err := url.Parse(pageURL)
+	parsedPageURL, err := url.Parse(basePageURL)
 	if err != nil {
-		return nil, fmt.Errorf("ParsePaginationLinks: failed to parse page URL %s: %w", pageURL, err)
+		return nil, fmt.Errorf("ParsePaginationLinks: failed to parse page URL %s: %w", basePageURL, err)
 	}
 
 	var links []string
@@ -95,7 +184,11 @@ func ParsePaginationLinks(htmlContent string, pageURL string) ([]string, error) 
 
 	// Common pagination selectors - this might need to be made more configurable or robust
 	// Based on the previous JIT refresh logic, it was looking for "div.pagination a"
-	doc.Find("div.pagination a[href], .pagmenu a[href], .page-nav a[href], .nav-links a[href]").Each(func(i int, s *goquery.Selection) {
+	// Added new selector for TheMagicCafe structure: "td.normal.bgc2.b.midtext a[href]"
+	// Attempting a slightly broader selector: td[class*="midtext"] a[href]
+	// Adding a very specific diagnostic selector for topic 42460 - THIS SHOULD BE REMOVED AFTER DIAGNOSIS
+	doc.Find("div.pagination a[href], .pagmenu a[href], .page-nav a[href], .nav-links a[href], td[class*=\"midtext\"] a[href]").Each(func(i int, s *goquery.Selection) {
+		// Note: The specific selector for topic 42460 (a[href^=\"viewtopic.php?topic=42460\"]) should be removed after this diagnostic phase.
 		href, exists := s.Attr("href")
 		if !exists || href == "" || href == "#" || strings.HasPrefix(strings.ToLower(href), "javascript:") {
 			return
@@ -103,10 +196,24 @@ func ParsePaginationLinks(htmlContent string, pageURL string) ([]string, error) 
 
 		absURL, err := parsedPageURL.Parse(href)
 		if err != nil {
-			log.Printf("[WARNING] ParsePaginationLinks: Error parsing pagination link '%s' on page %s: %v", href, pageURL, err)
+			log.Printf("[WARNING] ParsePaginationLinks: Error parsing pagination link '%s' on page %s: %v", href, basePageURL, err)
 			return
 		}
 		absLinkStr := absURL.String()
+
+		// Normalize: ensure 'forum' parameter is present if 'topic' is, using forum from basePageURL
+		tempURL, _ := url.Parse(absLinkStr)
+		queryParams := tempURL.Query()
+		if queryParams.Get("topic") != "" && queryParams.Get("forum") == "" {
+			baseQueryParams := parsedPageURL.Query()
+			if baseForumID := baseQueryParams.Get("forum"); baseForumID != "" {
+				queryParams.Set("forum", baseForumID)
+				tempURL.RawQuery = queryParams.Encode()
+				absLinkStr = tempURL.String()
+				log.Printf("[DEBUG] ParsePaginationLinks: Normalized URL to %s", absLinkStr)
+			}
+		}
+
 		if !seenLinks[absLinkStr] {
 			links = append(links, absLinkStr)
 			seenLinks[absLinkStr] = true
@@ -114,9 +221,9 @@ func ParsePaginationLinks(htmlContent string, pageURL string) ([]string, error) 
 	})
 
 	if len(links) == 0 {
-		log.Printf("[DEBUG] ParsePaginationLinks: No pagination links found on %s using common selectors.", pageURL)
+		log.Printf("[DEBUG] ParsePaginationLinks: No pagination links found on %s using common selectors.", basePageURL)
 	} else {
-		log.Printf("[DEBUG] ParsePaginationLinks: Found %d unique pagination links on %s.", len(links), pageURL)
+		log.Printf("[DEBUG] ParsePaginationLinks: Found %d unique pagination links on %s.", len(links), basePageURL)
 	}
 
 	return links, nil
@@ -124,6 +231,7 @@ func ParsePaginationLinks(htmlContent string, pageURL string) ([]string, error) 
 
 // ExtractTopicsFromHTMLInUtil parses the HTML content of a sub-forum page and extracts topics.
 // This is adapted from internal/indexer/topic/ExtractTopics.
+// THIS IS THE ORIGINAL STANDALONE FUNCTION.
 func ExtractTopicsFromHTMLInUtil(htmlContent string, pageURL string, subForumID string) ([]data.Topic, error) {
 	doc, err := goquery.NewDocumentFromReader(strings.NewReader(htmlContent))
 	if err != nil {

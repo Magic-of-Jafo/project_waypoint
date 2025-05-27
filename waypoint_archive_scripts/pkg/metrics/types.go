@@ -23,6 +23,16 @@ const (
 	ActionArchived   MetricAction = "Archived"
 	ActionDownloaded MetricAction = "Downloaded"
 	ActionSkipped    MetricAction = "Skipped"
+
+	// More specific actions for run_archiver
+	ActionProcessTopic     MetricAction = "ProcessTopic"
+	ActionGetPageURLs      MetricAction = "GetPageURLs"
+	ActionFetchPage        MetricAction = "FetchPage"
+	ActionSaveTopicHTML    MetricAction = "SaveTopicHTML"
+	ActionJITRefresh       MetricAction = "JITRefresh"
+	ActionJITFetchSubforum MetricAction = "JITFetchSubforumPage"
+	ActionJITExtractTopics MetricAction = "JITExtractTopics"
+	ActionJITFoundNewTopic MetricAction = "JITFoundNewTopic"
 	// Add other actions as needed
 )
 
@@ -45,9 +55,11 @@ type BatchMetrics struct {
 	StartTime time.Time
 
 	// Counters
-	PagesArchived  int64
-	TopicsArchived int64
-	BytesArchived  int64
+	PagesArchived     int64
+	TopicsArchived    int64
+	BytesArchived     int64
+	TopicsSkipped     int64
+	ErrorsEncountered int64
 
 	// Current rates (updated periodically)
 	CurrentPagesPerMin   float64
@@ -115,7 +127,7 @@ func (m *BatchMetrics) GetETC(remainingPages, remainingTopics int64) time.Durati
 		pagesETC = time.Duration(float64(remainingPages)/m.CurrentPagesPerMin) * time.Minute
 	}
 	if m.CurrentTopicsPerHour > 0 {
-		topicsETC = time.Duration(float64(remainingTopics)/m.CurrentTopicsPerHour) * time.Hour
+		topicsETC = time.Duration((float64(remainingTopics) / m.CurrentTopicsPerHour) * float64(time.Hour))
 	}
 
 	// Return the longer estimate
@@ -138,6 +150,6 @@ func (m *BatchMetrics) ToHistoricalMetrics(batchID string) HistoricalMetrics {
 		BytesArchived:    m.BytesArchived,
 		AvgPagesPerMin:   float64(m.PagesArchived) / (duration / 60),
 		AvgTopicsPerHour: float64(m.TopicsArchived) / (duration / 3600),
-		AvgMBPerMin:      float64(m.BytesArchived) / (duration * 1024 * 1024),
+		AvgMBPerMin:      (float64(m.BytesArchived) / (1024 * 1024)) / (duration / 60),
 	}
 }

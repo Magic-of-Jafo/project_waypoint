@@ -17,40 +17,51 @@ import (
 // Config holds the application configuration.
 // For now, it's basic. It can be expanded to load from a file or env vars.
 type Config struct {
-	TopicIndexDir      string        `json:"topicIndexDir"`
-	SubForumListFile   string        `json:"subForumListFile"`
-	PolitenessDelay    time.Duration `json:"politenessDelay"`
-	UserAgent          string        `json:"userAgent"`
-	ArchiveRootDir     string        `json:"archiveRootDir"`     // Added for archiver, used by storer (Story 2.4)
-	StateFilePath      string        `json:"stateFilePath"`      // Added for Story 2.6
-	PerformanceLogPath string        `json:"performanceLogPath"` // JSON tag updated for consistency
-	ConfigFilePath     string        `json:"-"`                  // Path to config file, not part of JSON/env/cli itself usually
+	TopicIndexDir         string        `json:"topicIndexDir"`
+	SubForumListFile      string        `json:"subForumListFile"`
+	TopicIndexFilePattern string        `json:"topicIndexFilePattern"`
+	PolitenessDelay       time.Duration `json:"politenessDelay"`
+	UserAgent             string        `json:"userAgent"`
+	ArchiveRootDir        string        `json:"archiveRootDir"`     // Added for archiver, used by storer (Story 2.4)
+	StateFilePath         string        `json:"stateFilePath"`      // Added for Story 2.6
+	SaveStateInterval     time.Duration `json:"saveStateInterval"`  // Added for Story 2.6, re-adding
+	PerformanceLogPath    string        `json:"performanceLogPath"` // JSON tag updated for consistency
+	ConfigFilePath        string        `json:"-"`                  // Path to config file, not part of JSON/env/cli itself usually
 
 	// New fields for Story 2.8
-	LogLevel             string `json:"logLevel"`
-	LogFilePath          string `json:"logFilePath"`             // Optional: if empty, log to stdout/stderr
-	JITRefreshPages      int    `json:"jitRefreshPages"`         // Number of initial pages of a sub-forum to re-scan
-	ForumBaseURL         string `json:"forumBaseURL"`            // Base URL of the forum, e.g., http://forum.example.com/
-	ArchiveOutputRootDir string `json:"archive_output_root_dir"` // Added for Task 6
+	LogLevel             string        `json:"logLevel"`
+	LogFilePath          string        `json:"logFilePath"`          // Optional: if empty, log to stdout/stderr
+	JITRefreshPages      int           `json:"jitRefreshPages"`      // Number of initial pages of a sub-forum to re-scan
+	JITRefreshInterval   time.Duration `json:"jitRefreshInterval"`   // How often to consider a JIT refresh for a sub-forum
+	ForumBaseURL         string        `json:"forumBaseURL"`         // Base URL of the forum, e.g., http://forum.example.com/
+	ArchiveOutputRootDir string        `json:"archiveOutputRootDir"` // Corrected JSON tag for consistency
+
+	// TestConfiguration specific fields
+	TestSubForumIDs       []string `json:"TestSubForumIDs,omitempty"`       // Match JSON key
+	TestArchiveOutputRoot string   `json:"TestArchiveOutputRoot,omitempty"` // Match JSON key
 }
 
 // DefaultConfig returns a new Config with default values.
 // These would typically be paths within a data directory.
 func DefaultConfig() *Config {
 	return &Config{
-		TopicIndexDir:        "data/topic_indices",
-		SubForumListFile:     "data/subforum_list.csv",
-		PolitenessDelay:      3 * time.Second,            // Default politeness delay
-		UserAgent:            "WaypointArchiveAgent/1.0", // Default User-Agent
-		ArchiveRootDir:       "archive_output",           // Default archive root
-		StateFilePath:        "archive_progress.json",    // Default state file path (Story 2.6)
-		PerformanceLogPath:   "logs/performance_log.csv",
-		LogLevel:             "INFO",                  // Default log level
-		LogFilePath:          "",                      // Default: no log file, use stdout/stderr
-		JITRefreshPages:      1,                       // Default: rescan 1 page for JIT refresh
-		ConfigFilePath:       configFile,              // Default config file path
-		ForumBaseURL:         "http://localhost:8080", // Placeholder, replace with actual default or leave empty
-		ArchiveOutputRootDir: "archive_output",        // Added for Task 6
+		TopicIndexDir:         "data/topic_indices",
+		SubForumListFile:      "data/subforum_list.csv",
+		TopicIndexFilePattern: "topic_index_forum_%s.csv", // Default was CSV, but we use JSON now, pattern will be from config.json ideally
+		PolitenessDelay:       3 * time.Second,            // Default politeness delay
+		UserAgent:             "WaypointArchiveAgent/1.0", // Default User-Agent
+		ArchiveRootDir:        "archive_output",           // Default archive root
+		StateFilePath:         "archive_progress.json",    // Default state file path (Story 2.6)
+		SaveStateInterval:     5 * time.Minute,            // Default save state interval (Story 2.6), re-adding
+		PerformanceLogPath:    "logs/performance_log.csv",
+		LogLevel:              "INFO",                  // Default log level
+		LogFilePath:           "",                      // Default: no log file, use stdout/stderr
+		JITRefreshPages:       1,                       // Default: rescan 1 page for JIT refresh
+		JITRefreshInterval:    24 * time.Hour,          // Default: consider JIT refresh once a day per sub-forum
+		ConfigFilePath:        configFile,              // Default config file path
+		ForumBaseURL:          "http://localhost:8080", // Placeholder, replace with actual default or leave empty
+		ArchiveOutputRootDir:  "archive_output",        // This was `archive_output_root_dir` in JSON. Ensuring consistency.
+		TestArchiveOutputRoot: "./test_archive_output", // Default for test runs
 	}
 }
 
@@ -114,7 +125,8 @@ func LoadConfig(arguments []string) (*Config, error) {
 	}
 
 	// 4. Define and parse all command-line flags using a local FlagSet
-	// This will override anything set by defaults, env, or config file.
+	// THIS SECTION IS TEMPORARILY COMMENTED OUT FOR DEBUGGING -- NOW RE-ENABLING
+
 	configFlags := flag.NewFlagSet("archiver-config", flag.ContinueOnError)
 
 	// Add configFile flag again to this set so it appears in help messages.
@@ -127,23 +139,27 @@ func LoadConfig(arguments []string) (*Config, error) {
 
 	cliTopicIndexDir := configFlags.String("topicIndexDir", cfg.TopicIndexDir, "Directory for topic index CSVs")
 	cliSubForumListFile := configFlags.String("subForumListFile", cfg.SubForumListFile, "Path to subforum list CSV")
+	cliTopicIndexFilePattern := configFlags.String("topicIndexFilePattern", cfg.TopicIndexFilePattern, "Pattern for topic index filenames, use %s for SubForumID")
 	cliPolitenessDelay := configFlags.String("politenessDelay", cfg.PolitenessDelay.String(), "Politeness delay (e.g., '3s', '500ms')")
 	cliUserAgent := configFlags.String("userAgent", cfg.UserAgent, "Custom User-Agent string")
 	cliArchiveRootDir := configFlags.String("archiveRootDir", cfg.ArchiveRootDir, "Root directory for storing archived files")
 	cliStateFilePath := configFlags.String("stateFilePath", cfg.StateFilePath, "Path to the archive progress state file")
+	cliSaveStateInterval := configFlags.String("saveStateInterval", cfg.SaveStateInterval.String(), "Interval for saving state (e.g., '5m', '30s')")
 	cliPerformanceLogPath := configFlags.String("performanceLogPath", cfg.PerformanceLogPath, "Path to the performance log file")
 	cliLogLevel := configFlags.String("logLevel", cfg.LogLevel, "Logging level (DEBUG, INFO, WARN, ERROR)")
 	cliLogFilePath := configFlags.String("logFilePath", cfg.LogFilePath, "Path to log file (optional, logs to stdout if empty)")
 	cliJITRefreshPages := configFlags.Int("jitRefreshPages", cfg.JITRefreshPages, "Number of initial sub-forum pages to re-scan for JIT topic refresh")
+	cliJITRefreshInterval := configFlags.String("jitRefreshInterval", cfg.JITRefreshInterval.String(), "How often to consider JIT refresh (e.g., '24h', '1h30m')")
 	cliForumBaseURL := configFlags.String("forumBaseURL", cfg.ForumBaseURL, "Base URL of the target forum (e.g., http://forum.example.com)")
 	cliArchiveOutputRootDir := configFlags.String("archiveOutputRootDir", cfg.ArchiveOutputRootDir, "Root directory for storing archived files")
 
 	err := configFlags.Parse(arguments)
 	if err != nil {
 		if errors.Is(err, flag.ErrHelp) {
-			// Let main handle printing usage and exiting for -help.
 			return cfg, err
 		}
+		// CRITICAL DEBUG: Print error directly to stderr
+		fmt.Fprintf(os.Stderr, "[DEBUG_STDERR] config.LoadConfig: configFlags.Parse returned error: %v\n", err)
 		log.Printf("[WARNING] Error parsing command-line flags: %v", err)
 		return cfg, fmt.Errorf("error parsing flags: %w", err)
 	}
@@ -161,6 +177,10 @@ func LoadConfig(arguments []string) (*Config, error) {
 	if userSet["subForumListFile"] {
 		cfg.SubForumListFile = *cliSubForumListFile
 		log.Printf("[INFO] SubForumListFile overridden by CLI flag: %s", cfg.SubForumListFile)
+	}
+	if userSet["topicIndexFilePattern"] {
+		cfg.TopicIndexFilePattern = *cliTopicIndexFilePattern
+		log.Printf("[INFO] TopicIndexFilePattern overridden by CLI flag: %s", cfg.TopicIndexFilePattern)
 	}
 	if userSet["politenessDelay"] {
 		parsedDuration, err := time.ParseDuration(*cliPolitenessDelay)
@@ -183,6 +203,15 @@ func LoadConfig(arguments []string) (*Config, error) {
 		cfg.StateFilePath = *cliStateFilePath
 		log.Printf("[INFO] StateFilePath overridden by CLI flag: %s", cfg.StateFilePath)
 	}
+	if userSet["saveStateInterval"] {
+		parsedDuration, err := time.ParseDuration(*cliSaveStateInterval)
+		if err != nil {
+			log.Printf("[WARNING] Invalid saveStateInterval format from CLI '%s': %v. Using previous value: %s", *cliSaveStateInterval, err, cfg.SaveStateInterval)
+		} else {
+			cfg.SaveStateInterval = parsedDuration
+			log.Printf("[INFO] SaveStateInterval overridden by CLI flag: %s", cfg.SaveStateInterval)
+		}
+	}
 	if userSet["performanceLogPath"] {
 		cfg.PerformanceLogPath = *cliPerformanceLogPath
 		log.Printf("[INFO] PerformanceLogPath overridden by CLI flag: %s", cfg.PerformanceLogPath)
@@ -199,6 +228,15 @@ func LoadConfig(arguments []string) (*Config, error) {
 		cfg.JITRefreshPages = *cliJITRefreshPages
 		log.Printf("[INFO] JITRefreshPages overridden by CLI flag: %d", cfg.JITRefreshPages)
 	}
+	if userSet["jitRefreshInterval"] {
+		parsedDuration, err := time.ParseDuration(*cliJITRefreshInterval)
+		if err != nil {
+			log.Printf("[WARNING] Invalid jitRefreshInterval format from CLI '%s': %v. Using previous value: %s", *cliJITRefreshInterval, err, cfg.JITRefreshInterval)
+		} else {
+			cfg.JITRefreshInterval = parsedDuration
+			log.Printf("[INFO] JITRefreshInterval overridden by CLI flag: %s", cfg.JITRefreshInterval)
+		}
+	}
 	if userSet["forumBaseURL"] {
 		cfg.ForumBaseURL = *cliForumBaseURL
 		log.Printf("[INFO] ForumBaseURL overridden by CLI flag: %s", cfg.ForumBaseURL)
@@ -208,7 +246,7 @@ func LoadConfig(arguments []string) (*Config, error) {
 		log.Printf("[INFO] ArchiveOutputRootDir overridden by CLI flag: %s", cfg.ArchiveOutputRootDir)
 	}
 
-	// Note: configFile / c flags are only used for initial load, not re-applied here.
+	// log.Printf("[DEBUG] config.LoadConfig: Skipping final CLI flag parsing. Current cfg.SubForumListFile: %s", cfg.SubForumListFile)
 
 	return cfg, nil
 }
@@ -252,6 +290,7 @@ func loadFromEnv(cfg *Config) {
 
 	cfg.TopicIndexDir = loadStrEnv("WAYPOINT_TOPIC_INDEX_DIR", cfg.TopicIndexDir)
 	cfg.SubForumListFile = loadStrEnv("WAYPOINT_SUBFORUM_LIST_FILE", cfg.SubForumListFile)
+	cfg.TopicIndexFilePattern = loadStrEnv("WAYPOINT_TOPIC_INDEX_FILE_PATTERN", cfg.TopicIndexFilePattern)
 	cfg.PolitenessDelay = loadDurationEnv("WAYPOINT_POLITENESS_DELAY", cfg.PolitenessDelay)
 	cfg.UserAgent = loadStrEnv("WAYPOINT_USER_AGENT", cfg.UserAgent)
 	cfg.ArchiveRootDir = loadStrEnv("WAYPOINT_ARCHIVE_ROOT_DIR", cfg.ArchiveRootDir)                    // Used by storer
@@ -259,8 +298,10 @@ func loadFromEnv(cfg *Config) {
 	cfg.StateFilePath = loadStrEnv("WAYPOINT_STATE_FILE_PATH", cfg.StateFilePath)
 	cfg.PerformanceLogPath = loadStrEnv("WAYPOINT_PERFORMANCE_LOG_PATH", cfg.PerformanceLogPath)
 	cfg.JITRefreshPages = loadIntEnv("WAYPOINT_JIT_REFRESH_PAGES", cfg.JITRefreshPages)
+	cfg.JITRefreshInterval = loadDurationEnv("WAYPOINT_JIT_REFRESH_INTERVAL", cfg.JITRefreshInterval)
 	cfg.LogFilePath = loadStrEnv("WAYPOINT_LOG_FILE_PATH", cfg.LogFilePath) // Handles empty string correctly by design
 	cfg.ForumBaseURL = loadStrEnv("WAYPOINT_FORUM_BASE_URL", cfg.ForumBaseURL)
+	cfg.SaveStateInterval = loadDurationEnv("WAYPOINT_SAVE_STATE_INTERVAL", cfg.SaveStateInterval)
 
 	// Handle LogLevel with validation
 	if logLevelStr, exists := os.LookupEnv("WAYPOINT_LOG_LEVEL"); exists && logLevelStr != "" {
@@ -272,6 +313,12 @@ func loadFromEnv(cfg *Config) {
 		default:
 			log.Printf("[WARNING] Invalid LogLevel '%s' from env var WAYPOINT_LOG_LEVEL. Using previous value: %s", logLevelStr, cfg.LogLevel)
 		}
+	}
+
+	// Load TestSubForumIDs from ENV (comma-separated string)
+	if valStr, exists := os.LookupEnv("WAYPOINT_TEST_SUB_FORUM_IDS"); exists && valStr != "" {
+		cfg.TestSubForumIDs = strings.Split(valStr, ",")
+		log.Printf("[INFO] TestSubForumIDs loaded from environment variable WAYPOINT_TEST_SUB_FORUM_IDS: %v", cfg.TestSubForumIDs)
 	}
 }
 
