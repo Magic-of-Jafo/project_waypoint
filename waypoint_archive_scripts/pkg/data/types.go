@@ -18,11 +18,11 @@ type Topic struct {
 
 // SubForum represents a sub-forum and its associated topics.
 type SubForum struct {
-	ID         string
-	Name       string
-	URL        string // Added for Story 2.8 - JIT Refresh. Base URL for the sub-forum page.
-	TopicCount int
-	Topics     []Topic // Using a slice of Topic structs
+	ID         int     `json:"sub_forum_id"`
+	Name       string  `json:"sub_forum_name"`
+	URL        string  `json:"base_url"` // Temporary tag
+	TopicCount int     `json:"topics_count"`
+	Topics     []Topic `json:"-"` // Topics are not in subforum_list.json, explicitly ignore
 }
 
 // MasterTopicList will hold all topics, ordered and de-duplicated.

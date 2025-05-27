@@ -191,3 +191,35 @@ func ReadTopicIndexJSON(filePath string, subForumID string) ([]data.Topic, error
 	log.Printf("[INFO] ReadTopicIndexJSON: successfully read %d topics from %s", len(topics), filePath)
 	return topics, nil
 }
+
+// ReadSubForumListJSON reads the subforum list JSON file.
+// Assumes JSON file contains an array of SubForum objects.
+// Returns a slice of data.SubForum.
+func ReadSubForumListJSON(filePath string) ([]data.SubForum, error) {
+	file, err := os.Open(filePath)
+	if err != nil {
+		log.Printf("[ERROR] ReadSubForumListJSON: failed to open file %s: %v", filePath, err)
+		return nil, fmt.Errorf("ReadSubForumListJSON: failed to open file %s: %w", filePath, err)
+	}
+	defer file.Close()
+
+	bytes, err := io.ReadAll(file)
+	if err != nil {
+		log.Printf("[ERROR] ReadSubForumListJSON: failed to read file content from %s: %v", filePath, err)
+		return nil, fmt.Errorf("ReadSubForumListJSON: failed to read file content from %s: %w", filePath, err)
+	}
+
+	if len(bytes) == 0 {
+		log.Printf("[INFO] ReadSubForumListJSON: file %s is empty.", filePath)
+		return []data.SubForum{}, nil
+	}
+
+	var subForums []data.SubForum
+	if err := json.Unmarshal(bytes, &subForums); err != nil {
+		log.Printf("[ERROR] ReadSubForumListJSON: failed to unmarshal JSON from %s: %v", filePath, err)
+		return nil, fmt.Errorf("ReadSubForumListJSON: failed to unmarshal JSON from %s: %w", filePath, err)
+	}
+
+	log.Printf("[INFO] ReadSubForumListJSON: successfully read %d subforum entries from %s", len(subForums), filePath)
+	return subForums, nil
+}

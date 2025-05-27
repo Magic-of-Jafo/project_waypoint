@@ -10,6 +10,7 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"syscall"
 	"time"
@@ -146,9 +147,7 @@ func main() {
 
 	// Initialize Metrics Logger (uses cfg.PerformanceLogPath)
 	metrics.InitPerformanceLogger(cfg.PerformanceLogPath)
-	// Ensure metrics are saved on exit, especially if panic or early exit occurs.
-	// Note: Signal handler already tries to save. This is an additional guard.
-	// defer metrics.SaveDetailMetricsLog() // This might be redundant with signal handler and explicit final save.
+	batchMetrics := metrics.NewBatchMetrics()
 
 	if len(cfg.TestSubForumIDs) > 0 {
 		log.Printf("[INFO] TEST MODE ACTIVE. Processing only SubForumIDs: %v", cfg.TestSubForumIDs)
@@ -158,7 +157,7 @@ func main() {
 
 	// Initialize components
 	dl := downloader.NewDownloader(cfg)
-	htmlStore := storer.NewStorer(cfg) // Uses cfg.ArchiveOutputRootDir
+	htmlStore := storer.NewStorer(cfg.ArchiveOutputRootDir) // Uses cfg.ArchiveOutputRootDir
 
 	// --- Load SubForum List and Topic Indices ---
 	log.Printf("[INFO] Loading sub-forum list from: %s", cfg.SubForumListFile)
@@ -228,8 +227,23 @@ func main() {
 			log.Printf("[INFO] Successfully loaded %d topics for SubForumID %s from %s.", len(topicsForSubForum), sfID, topicIndexFilePath)
 		}
 
+		intSFID, errConv := strconv.Atoi(sfID)
+		if errConv != nil {
+			log.Printf("[ERROR] Failed to convert SubForumID '%s' from CSV to int: %v. Skipping this sub-forum.", sfID, errConv)
+			metrics.AppendDetailMetric(metrics.PerformanceMetric{
+				Timestamp:    time.Now(),
+				ResourceType: metrics.ResourceTypeSubForum,
+				ResourceID:   sfID, // Log the original string ID that failed conversion
+				// TODO: Replace "" with a valid metrics.ActionType from your metrics package (e.g., metrics.ActionLoadIndex, metrics.ActionError)
+				Action: "", // Placeholder: No valid generic action found, please replace.
+				Notes:  fmt.Sprintf("Status: Error, Failed to convert SubForumID from CSV to int: %v", errConv),
+			})
+			batchMetrics.ErrorsEncountered++
+			continue
+		}
+
 		currentSubForum := data.SubForum{
-			ID:         sfID,
+			ID:         intSFID,
 			Name:       sfDataFromCSV.Name,
 			URL:        sfDataFromCSV.URL,
 			Topics:     topicsForSubForum,
@@ -258,7 +272,7 @@ func main() {
 	}
 
 	// Initialize Metrics
-	batchMetrics := metrics.NewBatchMetrics()
+	// batchMetrics := metrics.NewBatchMetrics() // This line is now removed
 	// Assuming PerformanceLogPath is for detailed, line-by-line metrics.
 	// If it's for batch summary, adjust accordingly.
 	// detailMetricsLog, err := metrics.NewDetailMetricsLog(cfg.PerformanceLogPath) // Removed
@@ -396,7 +410,7 @@ func main() {
 			var parentSubForum data.SubForum
 			foundSF := false
 			for _, sf := range allSubForumsList {
-				if sf.ID == topic.SubForumID {
+				if strconv.Itoa(sf.ID) == topic.SubForumID {
 					parentSubForum = sf
 					foundSF = true
 					break
@@ -404,7 +418,7 @@ func main() {
 			}
 
 			if foundSF && jitrefresh.ShouldPerformJITRefresh(parentSubForum, archivalState, cfg.JITRefreshPages > 0, cfg.JITRefreshInterval) {
-				log.Printf("[INFO] Performing JIT Refresh for SubForum %s (topic %s is part of it)", parentSubForum.ID, topic.ID)
+				log.Printf("[INFO] Performing JIT Refresh for SubForum %s (topic %s is part of it)", strconv.Itoa(parentSubForum.ID), topic.ID)
 				// Prepare interfaces for JIT refresh using new constructors from htmlutil
 				htmlFetcherForJIT := htmlutil.NewHTMLFetcher(cfg.UserAgent, cfg.PolitenessDelay)
 				paginationParserForJIT := htmlutil.NewPaginationParser(cfg.ForumBaseURL)
@@ -418,26 +432,26 @@ func main() {
 					topicExtractorForJIT,
 				)
 				if err != nil {
-					log.Printf("[ERROR] JIT Refresh for SubForum %s failed: %v", parentSubForum.ID, err)
+					log.Printf("[ERROR] JIT Refresh for SubForum %s failed: %v", strconv.Itoa(parentSubForum.ID), err)
 					metrics.AppendDetailMetric(metrics.PerformanceMetric{
 						Timestamp:    time.Now(),
 						ResourceType: metrics.ResourceTypeSubForum,
-						ResourceID:   parentSubForum.ID,
+						ResourceID:   strconv.Itoa(parentSubForum.ID),
 						Action:       metrics.ActionJITRefresh,
 						Notes:        fmt.Sprintf("Status: Error, JIT Refresh failed: %v", err),
 					})
 				} else {
-					log.Printf("[INFO] JIT Refresh for SubForum %s completed. Found %d new/updated topics.", parentSubForum.ID, len(refreshedTopics))
+					log.Printf("[INFO] JIT Refresh for SubForum %s completed. Found %d new/updated topics.", strconv.Itoa(parentSubForum.ID), len(refreshedTopics))
 					// TODO: Integrate refreshedTopics back into allTopicsMasterList or handle them
 					// This might involve updating existing topic entries or adding new ones.
 					// For now, we just log. A proper merge/update is complex.
 					// Mark that JIT refresh was attempted/done for this sub-forum in state
-					archivalState.MarkJITRefreshAttempted(parentSubForum.ID, time.Now())
+					archivalState.MarkJITRefreshAttempted(strconv.Itoa(parentSubForum.ID), time.Now())
 					// Log successful JIT refresh completion
 					metrics.AppendDetailMetric(metrics.PerformanceMetric{
 						Timestamp:    time.Now(),
 						ResourceType: metrics.ResourceTypeSubForum,
-						ResourceID:   parentSubForum.ID,
+						ResourceID:   strconv.Itoa(parentSubForum.ID),
 						Action:       metrics.ActionJITRefresh,
 						Notes:        fmt.Sprintf("Status: Success, Found %d new/updated topics", len(refreshedTopics)),
 					})

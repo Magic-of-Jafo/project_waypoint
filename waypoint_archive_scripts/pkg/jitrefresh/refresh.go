@@ -2,6 +2,7 @@ package jitrefresh
 
 import (
 	"log"
+	"strconv"
 	"time"
 
 	// "project-waypoint/internal/indexer/navigation" // Using the Epic 1 navigation package
@@ -53,18 +54,19 @@ func ShouldPerformJITRefresh(
 		return true // No record of last attempt, or state is nil, so refresh.
 	}
 
-	lastAttemptTime, ok := currentState.JITRefreshAttempts[subForum.ID]
+	// Convert subForum.ID (int) to string for map key
+	lastAttemptTime, ok := currentState.JITRefreshAttempts[strconv.Itoa(subForum.ID)]
 	if !ok {
-		log.Printf("[INFO] JIT REFRESH: No JIT refresh attempt recorded for SubForum %s. Performing refresh.", subForum.ID)
+		log.Printf("[INFO] JIT REFRESH: No JIT refresh attempt recorded for SubForum %s. Performing refresh.", strconv.Itoa(subForum.ID))
 		return true // No attempt recorded for this specific sub-forum.
 	}
 
 	if time.Since(lastAttemptTime) >= jitInterval {
-		log.Printf("[INFO] JIT REFRESH: JIT refresh interval (%s) has passed for SubForum %s (last attempt: %s). Performing refresh.", jitInterval, subForum.ID, lastAttemptTime)
+		log.Printf("[INFO] JIT REFRESH: JIT refresh interval (%s) has passed for SubForum %s (last attempt: %s). Performing refresh.", jitInterval, strconv.Itoa(subForum.ID), lastAttemptTime)
 		return true
 	}
 
-	log.Printf("[DEBUG] JIT REFRESH: JIT refresh interval (%s) has NOT passed for SubForum %s (last attempt: %s). Skipping refresh.", jitInterval, subForum.ID, lastAttemptTime)
+	log.Printf("[DEBUG] JIT REFRESH: JIT refresh interval (%s) has NOT passed for SubForum %s (last attempt: %s). Skipping refresh.", jitInterval, strconv.Itoa(subForum.ID), lastAttemptTime)
 	return false
 }
 
@@ -107,9 +109,10 @@ func PerformJITRefresh(
 	}
 
 	// Use the ExtractTopics method from the extractor interface
-	liveTopicsOnInitialPage, err := extractor.ExtractTopics(initialPageHTML, subForumData.URL, subForumData.ID)
+	// Convert subForumData.ID (int) to string for the subForumID argument
+	liveTopicsOnInitialPage, err := extractor.ExtractTopics(initialPageHTML, subForumData.URL, strconv.Itoa(subForumData.ID))
 	if err != nil {
-		log.Printf("[WARNING] JIT REFRESH: Failed to extract topics from initial page %s for sub-forum %s: %v. Continuing with pagination scan if possible.", subForumData.URL, subForumData.ID, err)
+		log.Printf("[WARNING] JIT REFRESH: Failed to extract topics from initial page %s for sub-forum %s: %v. Continuing with pagination scan if possible.", subForumData.URL, strconv.Itoa(subForumData.ID), err)
 		// Not returning error here, as pagination might still yield results from other pages
 	} else {
 		log.Printf("[DEBUG] JIT REFRESH: Found %d topics on initial page %s", len(liveTopicsOnInitialPage), subForumData.URL)
@@ -151,9 +154,10 @@ func PerformJITRefresh(
 				}
 
 				// Use ExtractTopics method
-				liveTopicsOnPage, err := extractor.ExtractTopics(pageHTML, pageURL, subForumData.ID)
+				// Convert subForumData.ID (int) to string for the subForumID argument
+				liveTopicsOnPage, err := extractor.ExtractTopics(pageHTML, pageURL, strconv.Itoa(subForumData.ID))
 				if err != nil {
-					log.Printf("[WARNING] JIT REFRESH: Failed to extract topics from page %s for sub-forum %s: %v. Skipping page.", pageURL, subForumData.ID, err)
+					log.Printf("[WARNING] JIT REFRESH: Failed to extract topics from page %s for sub-forum %s: %v. Skipping page.", pageURL, strconv.Itoa(subForumData.ID), err)
 					continue
 				}
 
