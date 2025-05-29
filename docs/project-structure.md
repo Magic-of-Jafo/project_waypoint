@@ -30,6 +30,8 @@ waypoint_archive_scripts/
 │   │   └── indexer.go
 │   ├── archiverlogic/            # Core logic for HTML archival (Story 2.1-2.7)
 │   │   └── archiver.go
+│   ├── extractorlogic/           # Core logic for data extraction (Story 3.1+)
+│   │   └── extractor.go
 │   ├── parser/                   # HTML parsing utilities (used by indexer, archiver, extractor)
 │   │   └── parser.go
 │   ├── utils/                    # Common utility functions (logging helpers, file helpers, etc.)
@@ -61,6 +63,7 @@ waypoint_archive_scripts/
     * `pkg/config`: Handles loading configuration (e.g., from files or environment variables).
     * `pkg/indexerlogic`: Core logic for Epic 1.
     * `pkg/archiverlogic`: Core logic for Epic 2.
+    * `pkg/extractorlogic`: Core logic for Epic 3.
     * `pkg/parser`: Common HTML parsing functions.
     * `pkg/utils`: General helper functions.
     * `pkg/data`: Go struct definitions for data passed between modules.
