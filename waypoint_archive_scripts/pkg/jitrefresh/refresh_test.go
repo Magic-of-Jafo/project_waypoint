@@ -167,7 +167,7 @@ func TestPerformJITRefresh(t *testing.T) {
 		{
 			name: "discover new topics",
 			subForumData: data.SubForum{
-				ID:   1,
+				ID:   "1",
 				Name: "SubForum One",
 				URL:  "http://forum.example.com/sf1",
 				Topics: []data.Topic{
@@ -218,7 +218,7 @@ func TestPerformJITRefresh(t *testing.T) {
 		{
 			name: "no new topics found",
 			subForumData: data.SubForum{
-				ID:     2,
+				ID:     "2",
 				Name:   "SubForum Two",
 				URL:    "http://forum.example.com/sf2",
 				Topics: []data.Topic{{ID: "t200", SubForumID: "2", Title: "Existing Topic 200 Link"}},
@@ -242,7 +242,7 @@ func TestPerformJITRefresh(t *testing.T) {
 		// --- Scenario 3: Sub-forum URL is empty ---
 		{
 			name:          "sub-forum URL empty",
-			subForumData:  data.SubForum{ID: 3, Name: "SubForum Three", URL: ""},
+			subForumData:  data.SubForum{ID: "3", Name: "SubForum Three", URL: ""},
 			cfg:           &config.Config{JITRefreshPages: 1, UserAgent: "TestAgent/1.0"},
 			wantNewTopics: []data.Topic{},
 			wantErr:       false,
@@ -251,7 +251,7 @@ func TestPerformJITRefresh(t *testing.T) {
 		// --- Scenario 4: JITRefreshPages is 0 ---
 		{
 			name:         "JITRefreshPages is 0",
-			subForumData: data.SubForum{ID: 4, Name: "SubForum Four", URL: "http://forum.example.com/sf4"},
+			subForumData: data.SubForum{ID: "4", Name: "SubForum Four", URL: "http://forum.example.com/sf4"},
 			cfg:          &config.Config{JITRefreshPages: 0, PolitenessDelay: 0, ForumBaseURL: "http://forum.example.com", UserAgent: "TestAgent/1.0"},
 			mockHTTPResponses: map[string]string{
 				"http://forum.example.com/sf4": `<html><body><a href="topic.php?id=t400">Topic 400</a></body></html>`,
@@ -263,7 +263,7 @@ func TestPerformJITRefresh(t *testing.T) {
 		// --- Scenario 5: Error fetching initial page for pagination ---
 		{
 			name:          "error fetching initial page",
-			subForumData:  data.SubForum{ID: 5, Name: "SubForum Five", URL: "http://forum.example.com/sf5_fetch_error"},
+			subForumData:  data.SubForum{ID: "5", Name: "SubForum Five", URL: "http://forum.example.com/sf5_fetch_error"},
 			cfg:           &config.Config{JITRefreshPages: 1, PolitenessDelay: 0, UserAgent: "TestAgent/1.0"},
 			mockFetchErr:  fmt.Errorf("simulated fetch error for initial page"),
 			wantNewTopics: nil,
@@ -273,7 +273,7 @@ func TestPerformJITRefresh(t *testing.T) {
 		// --- Scenario 6: Error parsing pagination links ---
 		{
 			name:         "error parsing pagination links",
-			subForumData: data.SubForum{ID: 6, Name: "SubForum Six", URL: "http://forum.example.com/sf6_parse_error"},
+			subForumData: data.SubForum{ID: "6", Name: "SubForum Six", URL: "http://forum.example.com/sf6_parse_error"},
 			cfg:          &config.Config{JITRefreshPages: 1, PolitenessDelay: 0, UserAgent: "TestAgent/1.0"},
 			mockHTTPResponses: map[string]string{
 				"http://forum.example.com/sf6_parse_error": `<html><body><a href="topic.php?id=t600">Topic 600</a></body></html>`,
@@ -295,7 +295,7 @@ func TestPerformJITRefresh(t *testing.T) {
 		// --- Scenario 7: Error fetching a subsequent page ---
 		{
 			name:         "error fetching subsequent page",
-			subForumData: data.SubForum{ID: 7, Name: "SF Seven", URL: "http://forum.example.com/sf7"},
+			subForumData: data.SubForum{ID: "7", Name: "SF Seven", URL: "http://forum.example.com/sf7"},
 			cfg:          &config.Config{JITRefreshPages: 2, PolitenessDelay: 0, UserAgent: "TestAgent/1.0"},
 			mockHTTPResponses: map[string]string{
 				"http://forum.example.com/sf7": `<html><body><a href="topic.php?id=t700">Topic 700</a><div class="pagination"><a href="http://forum.example.com/sf7?page=2_fetch_error">Next</a></div></body></html>`,
@@ -321,7 +321,7 @@ func TestPerformJITRefresh(t *testing.T) {
 		// --- Scenario 8: Error extracting topics from a subsequent page ---
 		{
 			name:         "error extracting topics from subsequent page",
-			subForumData: data.SubForum{ID: 8, Name: "SF Eight Sub", URL: "http://forum.example.com/sf8_sub"},
+			subForumData: data.SubForum{ID: "8", Name: "SF Eight Sub", URL: "http://forum.example.com/sf8_sub"},
 			cfg:          &config.Config{JITRefreshPages: 2, PolitenessDelay: 0, UserAgent: "TestAgent/1.0"},
 			mockHTTPResponses: map[string]string{
 				"http://forum.example.com/sf8_sub":                      `<html><body><a href="topic.php?id=t800">Topic 800</a><div class="pagination"><a href="http://forum.example.com/sf8_sub?page=2_extract_error">Next</a></div></body></html>`,
@@ -352,7 +352,7 @@ func TestPerformJITRefresh(t *testing.T) {
 		// --- Scenario 9: Single-page sub-forum ---
 		{
 			name:         "single-page sub-forum",
-			subForumData: data.SubForum{ID: 9, Name: "SubForum Nine", URL: "http://forum.example.com/sf9_single"},
+			subForumData: data.SubForum{ID: "9", Name: "SubForum Nine", URL: "http://forum.example.com/sf9_single"},
 			cfg:          &config.Config{JITRefreshPages: 1, PolitenessDelay: 0, UserAgent: "TestAgent/1.0"},
 			mockHTTPResponses: map[string]string{
 				"http://forum.example.com/sf9_single": `<html><body><a href="topic.php?id=t901">SP Topic 901</a><a href="topic.php?id=t902">SP Topic 902</a></body></html>`,
@@ -377,7 +377,7 @@ func TestPerformJITRefresh(t *testing.T) {
 		// --- Scenario 10: UserAgent passed to FetchHTML ---
 		{
 			name:         "UserAgent passed to FetchHTML",
-			subForumData: data.SubForum{ID: 10, Name: "SubForum UserAgent", URL: "http://forum.example.com/sfUA"},
+			subForumData: data.SubForum{ID: "10", Name: "SubForum UserAgent", URL: "http://forum.example.com/sfUA"},
 			cfg:          &config.Config{JITRefreshPages: 1, UserAgent: "ConfiguredUA/1.1", PolitenessDelay: time.Millisecond * 10},
 			mockHTTPResponses: map[string]string{
 				"http://forum.example.com/sfUA": `<html><body><a href="topic.php?id=ua1">UA Topic 1</a></body></html>`,

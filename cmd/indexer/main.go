@@ -11,11 +11,11 @@ import (
 
 	// "sort" // Will be needed later for ordered output if desired
 
-	"waypoint_archive_scripts/internal/indexer/logger"  // Corrected
-	"waypoint_archive_scripts/internal/indexer/metrics" // Corrected
-	"waypoint_archive_scripts/internal/indexer/navigation"
-	"waypoint_archive_scripts/internal/indexer/storage" // Corrected
-	"waypoint_archive_scripts/internal/indexer/topic"   // Corrected
+	"internal/indexer/logger"  // Corrected
+	"internal/indexer/metrics" // Corrected
+	"internal/indexer/navigation"
+	"internal/indexer/storage" // Corrected
+	"internal/indexer/topic"   // Corrected
 )
 
 // Configuration struct to hold all configurable parameters

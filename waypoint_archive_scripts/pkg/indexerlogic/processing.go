@@ -6,7 +6,6 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
-	"strconv"
 	"strings"
 
 	"waypoint_archive_scripts/pkg/config"
@@ -30,16 +29,10 @@ func ProcessTopicsAndSubForums(allTopics []data.Topic, subForumDetails map[strin
 			details = SubForumNameAndURL{Name: sfIDStr, URL: ""} // Use ID as name, empty URL if not found
 		}
 
-		sfIDInt, err := strconv.Atoi(sfIDStr)
-		if err != nil {
-			log.Printf("[WARNING] ProcessTopicsAndSubForums: Could not convert SubForumID '%s' to int: %v. Skipping this subforum entry.", sfIDStr, err)
-			continue
-		}
-
 		subForum := data.SubForum{
-			ID:         sfIDInt,
+			ID:         sfIDStr,
 			Name:       details.Name,
-			URL:        details.URL, // Populate the URL
+			URL:        details.URL,
 			TopicCount: len(sfTopics),
 			Topics:     sfTopics,
 		}
@@ -129,7 +122,7 @@ func LoadAndProcessTopicIndex(cfg *config.Config) ([]data.SubForum, data.MasterT
 	SortSubForumsByTopicCount(subForums)
 	log.Println("[INFO] Sub-forums sorted by topic count (ascending). Determined processing order:")
 	for _, sf := range subForums {
-		log.Printf("[INFO] - Sub-forum: %s (ID: %d, Topics: %d)", sf.Name, sf.ID, sf.TopicCount)
+		log.Printf("[INFO] - Sub-forum: %s (ID: %s, Topics: %d)", sf.Name, sf.ID, sf.TopicCount)
 	}
 
 	masterTopicList := GenerateMasterTopicList(subForums)

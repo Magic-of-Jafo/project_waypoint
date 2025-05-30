@@ -243,7 +243,7 @@ func main() {
 		}
 
 		currentSubForum := data.SubForum{
-			ID:         intSFID,
+			ID:         strconv.Itoa(intSFID),
 			Name:       sfDataFromCSV.Name,
 			URL:        sfDataFromCSV.URL,
 			Topics:     topicsForSubForum,
@@ -410,7 +410,7 @@ func main() {
 			var parentSubForum data.SubForum
 			foundSF := false
 			for _, sf := range allSubForumsList {
-				if strconv.Itoa(sf.ID) == topic.SubForumID {
+				if sf.ID == topic.SubForumID {
 					parentSubForum = sf
 					foundSF = true
 					break
@@ -418,7 +418,7 @@ func main() {
 			}
 
 			if foundSF && jitrefresh.ShouldPerformJITRefresh(parentSubForum, archivalState, cfg.JITRefreshPages > 0, cfg.JITRefreshInterval) {
-				log.Printf("[INFO] Performing JIT Refresh for SubForum %s (topic %s is part of it)", strconv.Itoa(parentSubForum.ID), topic.ID)
+				log.Printf("[INFO] Performing JIT Refresh for SubForum %s (topic %s is part of it)", parentSubForum.ID, topic.ID)
 				// Prepare interfaces for JIT refresh using new constructors from htmlutil
 				htmlFetcherForJIT := htmlutil.NewHTMLFetcher(cfg.UserAgent, cfg.PolitenessDelay)
 				paginationParserForJIT := htmlutil.NewPaginationParser(cfg.ForumBaseURL)
@@ -432,26 +432,26 @@ func main() {
 					topicExtractorForJIT,
 				)
 				if err != nil {
-					log.Printf("[ERROR] JIT Refresh for SubForum %s failed: %v", strconv.Itoa(parentSubForum.ID), err)
+					log.Printf("[ERROR] JIT Refresh for SubForum %s failed: %v", parentSubForum.ID, err)
 					metrics.AppendDetailMetric(metrics.PerformanceMetric{
 						Timestamp:    time.Now(),
 						ResourceType: metrics.ResourceTypeSubForum,
-						ResourceID:   strconv.Itoa(parentSubForum.ID),
+						ResourceID:   parentSubForum.ID,
 						Action:       metrics.ActionJITRefresh,
 						Notes:        fmt.Sprintf("Status: Error, JIT Refresh failed: %v", err),
 					})
 				} else {
-					log.Printf("[INFO] JIT Refresh for SubForum %s completed. Found %d new/updated topics.", strconv.Itoa(parentSubForum.ID), len(refreshedTopics))
+					log.Printf("[INFO] JIT Refresh for SubForum %s completed. Found %d new/updated topics.", parentSubForum.ID, len(refreshedTopics))
 					// TODO: Integrate refreshedTopics back into allTopicsMasterList or handle them
 					// This might involve updating existing topic entries or adding new ones.
 					// For now, we just log. A proper merge/update is complex.
 					// Mark that JIT refresh was attempted/done for this sub-forum in state
-					archivalState.MarkJITRefreshAttempted(strconv.Itoa(parentSubForum.ID), time.Now())
+					archivalState.MarkJITRefreshAttempted(parentSubForum.ID, time.Now())
 					// Log successful JIT refresh completion
 					metrics.AppendDetailMetric(metrics.PerformanceMetric{
 						Timestamp:    time.Now(),
 						ResourceType: metrics.ResourceTypeSubForum,
-						ResourceID:   strconv.Itoa(parentSubForum.ID),
+						ResourceID:   parentSubForum.ID,
 						Action:       metrics.ActionJITRefresh,
 						Notes:        fmt.Sprintf("Status: Success, Found %d new/updated topics", len(refreshedTopics)),
 					})

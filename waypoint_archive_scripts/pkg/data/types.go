@@ -18,7 +18,7 @@ type Topic struct {
 
 // SubForum represents a sub-forum and its associated topics.
 type SubForum struct {
-	ID         int     `json:"sub_forum_id"`
+	ID         string  `json:"sub_forum_id"` // Changed from int to string
 	Name       string  `json:"sub_forum_name"`
 	URL        string  `json:"base_url"` // Temporary tag
 	TopicCount int     `json:"topics_count"`
@@ -30,4 +30,15 @@ type SubForum struct {
 // handled by the logic that populates this.
 type MasterTopicList struct {
 	Topics []Topic
+}
+
+// PostMetadata holds the extracted metadata for a single forum post.
+type PostMetadata struct {
+	PostID          string `json:"post_id"`
+	TopicID         string `json:"topic_id"`
+	SubForumID      string `json:"subforum_id"`
+	PageNumber      int    `json:"page_number"`
+	PostOrderOnPage int    `json:"post_order_on_page"`
+	AuthorUsername  string `json:"author_username"`
+	Timestamp       string `json:"timestamp"` // Formatted "YYYY-MM-DD HH:MM:SS"
 }

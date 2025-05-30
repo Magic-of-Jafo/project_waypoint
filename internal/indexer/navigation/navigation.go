@@ -10,8 +10,8 @@ import (
 	"strings"
 	"time"
 
-	"waypoint_archive_scripts/internal/indexer/logger"
-	"waypoint_archive_scripts/pkg/data"
+	"internal/indexer/data"
+	"internal/indexer/logger"
 
 	"github.com/PuerkitoBio/goquery"
 )

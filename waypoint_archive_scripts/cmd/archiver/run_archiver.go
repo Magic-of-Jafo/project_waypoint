@@ -10,7 +10,6 @@ import (
 	"os/signal"
 	"path/filepath"
 	"sort"
-	"strconv"
 	"strings"
 	"syscall"
 	"time"
@@ -107,7 +106,7 @@ func downloadTopicPageHTML_Placeholder(pageURL string, topicID string, pageNum i
 func storePageHTML_Placeholder(htmlContent string, subForum data.SubForum, topic data.Topic, pageNum int, pageURL string, cfg *config.Config) error {
 	// Determine file path based on config and conventions (platform-agnostic)
 	// Example: <ArchiveOutputRootDir>/<SubForumID>/<TopicID>/page_<PageNum>.html
-	topicDir := filepath.Join(cfg.ArchiveOutputRootDir, strconv.Itoa(subForum.ID), topic.ID)
+	topicDir := filepath.Join(cfg.ArchiveOutputRootDir, subForum.ID, topic.ID)
 	fileName := fmt.Sprintf("page_%d.html", pageNum)
 	fullPath := filepath.Join(topicDir, fileName)
 
@@ -216,18 +215,18 @@ func main() {
 		// Assumes TopicIndexDir is like ".../indexed_data/"
 		// And TopicIndexFilePattern is like "topic_index_*.json"
 		// And actual files are in ".../indexed_data/forum_XX/topic_index_XX.json"
-		forumDirComponent := "forum_" + strconv.Itoa(sfBase.ID)
+		forumDirComponent := "forum_" + sfBase.ID
 		// Use sfBase.ID for the wildcard replacement in the pattern
-		topicIndexFilename := strings.Replace(cfg.TopicIndexFilePattern, "*", strconv.Itoa(sfBase.ID), 1)
+		topicIndexFilename := strings.Replace(cfg.TopicIndexFilePattern, "*", sfBase.ID, 1)
 		topicDataPath := filepath.Join(cfg.TopicIndexDir, forumDirComponent, topicIndexFilename)
 
-		log.Printf("[DEBUG] Loading topics for SubForum ID: %d (Name: %s) from %s", sfBase.ID, sfBase.Name, topicDataPath)
-		topicsForThisSF, err := indexerlogic.ReadTopicIndexJSON(topicDataPath, strconv.Itoa(sfBase.ID))
+		log.Printf("[DEBUG] Loading topics for SubForum ID: %s (Name: %s) from %s", sfBase.ID, sfBase.Name, topicDataPath)
+		topicsForThisSF, err := indexerlogic.ReadTopicIndexJSON(topicDataPath, sfBase.ID)
 		if err != nil {
 			if os.IsNotExist(err) {
-				log.Printf("[WARNING] Topic index file %s not found for sub-forum %d (Name: %s). Treating as 0 topics initially.", topicDataPath, sfBase.ID, sfBase.Name)
+				log.Printf("[WARNING] Topic index file %s not found for sub-forum %s (Name: %s). Treating as 0 topics initially.", topicDataPath, sfBase.ID, sfBase.Name)
 			} else {
-				log.Printf("[WARNING] Failed to read topic index for sub-forum %d (Name: %s) from %s: %v. Treating as 0 topics initially.", sfBase.ID, sfBase.Name, topicDataPath, err)
+				log.Printf("[WARNING] Failed to read topic index for sub-forum %s (Name: %s) from %s: %v. Treating as 0 topics initially.", sfBase.ID, sfBase.Name, topicDataPath, err)
 			}
 			// Create a SubForum entry even if topics couldn't be loaded, so it's in the list for potential JIT
 			allSubForumsList = append(allSubForumsList, data.SubForum{
@@ -249,7 +248,7 @@ func main() {
 			Topics:     topicsForThisSF,
 		}
 		allSubForumsList = append(allSubForumsList, subForumEntry)
-		log.Printf("[DEBUG] Successfully loaded %d topics for SubForum ID: %d.", len(topicsForThisSF), sfBase.ID)
+		log.Printf("[DEBUG] Successfully loaded %d topics for SubForum ID: %s.", len(topicsForThisSF), sfBase.ID)
 	}
 	masterTopicList := &data.MasterTopicList{Topics: allTopicsMasterList}
 	log.Printf("[INFO] Successfully processed %d sub-forums, loaded %d unique topics into the master list.", len(allSubForumsList), len(masterTopicList.Topics))
@@ -262,7 +261,7 @@ func main() {
 			if len(cfg.TestSubForumIDs) > 0 {
 				found := false
 				for _, testID := range cfg.TestSubForumIDs {
-					if strconv.Itoa(sf.ID) == testID {
+					if sf.ID == testID {
 						found = true
 						break
 					}
@@ -314,12 +313,12 @@ func main() {
 		pagesArchivedInSubForum := 0
 
 		// Sub-forum level resume logic
-		if skipToSubForumID != "" && strconv.Itoa(currentSubForum.ID) != skipToSubForumID && !foundResumedSubForum {
-			log.Printf("[INFO] Resume: Skipping SubForum ID %d (waiting for resume point %s).", currentSubForum.ID, skipToSubForumID)
+		if skipToSubForumID != "" && currentSubForum.ID != skipToSubForumID && !foundResumedSubForum {
+			log.Printf("[INFO] Resume: Skipping SubForum ID %s (waiting for resume point %s).", currentSubForum.ID, skipToSubForumID)
 			processedTopicsSoFar += currentSubForum.TopicCount // Account for skipped topics in ETC
 			continue
 		}
-		if strconv.Itoa(currentSubForum.ID) == skipToSubForumID {
+		if currentSubForum.ID == skipToSubForumID {
 			foundResumedSubForum = true
 		}
 		// If no specific sub-forum to skip to, or if we've found it, proceed.
@@ -328,18 +327,18 @@ func main() {
 		if len(cfg.TestSubForumIDs) > 0 {
 			foundInTestList := false
 			for _, testID := range cfg.TestSubForumIDs {
-				if strconv.Itoa(currentSubForum.ID) == testID {
+				if currentSubForum.ID == testID {
 					foundInTestList = true
 					break
 				}
 			}
 			if !foundInTestList {
-				log.Printf("[DEBUG] TEST MODE: Skipping sub-forum %d (%s) as it's not in TestSubForumIDs list.", currentSubForum.ID, currentSubForum.Name)
+				log.Printf("[DEBUG] TEST MODE: Skipping sub-forum %s (%s) as it's not in TestSubForumIDs list.", currentSubForum.ID, currentSubForum.Name)
 				continue
 			}
 		}
 
-		log.Printf("[INFO] >>> Processing Sub-Forum ID: %d, Name: %s, URL: %s", currentSubForum.ID, currentSubForum.Name, currentSubForum.URL)
+		log.Printf("[INFO] >>> Processing Sub-Forum ID: %s, Name: %s, URL: %s", currentSubForum.ID, currentSubForum.Name, currentSubForum.URL)
 
 		// --- JIT Topic Index Refresh (Story 2.8 AC9) ---
 		topicsForSubForum := currentSubForum.Topics // Work with a copy that can be modified by JIT
@@ -350,7 +349,7 @@ func main() {
 			jitIntervalDuration := time.Duration(cfg.JITRefreshInterval) * time.Minute
 			// ShouldPerformJITRefresh handles its own logic based on state, including checking the interval.
 			if jitrefresh.ShouldPerformJITRefresh(currentSubForum, archivalState, cfg.JITRefreshPages > 0, jitIntervalDuration) {
-				log.Printf("[INFO] JITREFRESH: Performing JIT index refresh for SubForum %d (URL: %s, first %d pages)", currentSubForum.ID, currentSubForum.URL, cfg.JITRefreshPages)
+				log.Printf("[INFO] JITREFRESH: Performing JIT index refresh for SubForum %s (URL: %s, first %d pages)", currentSubForum.ID, currentSubForum.URL, cfg.JITRefreshPages)
 				// Corrected JIT Call: Pass instances, not methods
 				newlyDiscoveredTopics, errJIT := jitrefresh.PerformJITRefresh(
 					currentSubForum, // Pass the current subForum from the loop
@@ -361,9 +360,9 @@ func main() {
 				)
 
 				if errJIT != nil {
-					log.Printf("[WARNING] JITREFRESH: Error during JIT refresh for %d: %v. Proceeding with initially indexed topics.", currentSubForum.ID, errJIT)
+					log.Printf("[WARNING] JITREFRESH: Error during JIT refresh for %s: %v. Proceeding with initially indexed topics.", currentSubForum.ID, errJIT)
 				} else if len(newlyDiscoveredTopics) > 0 {
-					log.Printf("[INFO] JITREFRESH: Found %d new/updated topics for %d.", len(newlyDiscoveredTopics), currentSubForum.ID)
+					log.Printf("[INFO] JITREFRESH: Found %d new/updated topics for %s.", len(newlyDiscoveredTopics), currentSubForum.ID)
 					// Merge logic: Add new topics, potentially update existing ones. For now, just append and let processing handle duplicates if any based on ID.
 					existingTopicMap := make(map[string]bool)
 					for _, t := range topicsForSubForum {
@@ -377,7 +376,7 @@ func main() {
 						}
 					}
 					if addedCount > 0 {
-						log.Printf("[INFO] JITREFRESH: Added %d unique new topics to process for subforum %d.", addedCount, currentSubForum.ID)
+						log.Printf("[INFO] JITREFRESH: Added %d unique new topics to process for subforum %s.", addedCount, currentSubForum.ID)
 						totalTopicsOverallForRun += addedCount // Adjust total for ETC
 						// Re-sort if order matters after JIT additions
 						sort.Slice(topicsForSubForum, func(i, j int) bool {
@@ -387,31 +386,31 @@ func main() {
 				}
 			}
 		} else {
-			log.Printf("[INFO] JIT REFRESH: Sub-forum %d has no base URL. Cannot perform JIT refresh. Using %d loaded topics.", currentSubForum.ID, len(topicsForSubForum))
+			log.Printf("[INFO] JIT REFRESH: Sub-forum %s has no base URL. Cannot perform JIT refresh. Using %d loaded topics.", currentSubForum.ID, len(topicsForSubForum))
 		}
 
 		// Topic-level resume: Determine if we need to skip topics within this sub-forum
 		foundResumedTopicInSF := false
-		if strconv.Itoa(currentSubForum.ID) != skipToSubForumID || skipToTopicID == "" {
+		if currentSubForum.ID != skipToSubForumID || skipToTopicID == "" {
 			// If this isn't the sub-forum we stopped on, or if there was no specific topic, process all topics in this SF
 			foundResumedTopicInSF = true
 		}
 
 		if len(topicsForSubForum) == 0 {
-			log.Printf("[INFO] No topics found or loaded for sub-forum %d. Moving to next sub-forum.", currentSubForum.ID)
+			log.Printf("[INFO] No topics found or loaded for sub-forum %s. Moving to next sub-forum.", currentSubForum.ID)
 			continue
 		}
 
 		// --- Topic Loop for the current Sub-Forum ---
-		log.Printf("[INFO] Starting topic loop for sub-forum %d (%d topics)...", currentSubForum.ID, len(topicsForSubForum))
+		log.Printf("[INFO] Starting topic loop for sub-forum %s (%d topics)...", currentSubForum.ID, len(topicsForSubForum))
 		for topicIndex, topic := range topicsForSubForum { // topic is already data.Topic
 			// Resume logic for topics
 			if !foundResumedTopicInSF && topic.ID != skipToTopicID {
-				log.Printf("[INFO] Resume: SF %d: Skipping Topic ID %s (waiting for resume topic %s).", currentSubForum.ID, topic.ID, skipToTopicID)
+				log.Printf("[INFO] Resume: SF %s: Skipping Topic ID %s (waiting for resume topic %s).", currentSubForum.ID, topic.ID, skipToTopicID)
 				processedTopicsSoFar++ // Account for ETC
 				continue
 			}
-			if strconv.Itoa(currentSubForum.ID) == skipToSubForumID && topic.ID == skipToTopicID {
+			if currentSubForum.ID == skipToSubForumID && topic.ID == skipToTopicID {
 				foundResumedTopicInSF = true // This is the specific topic to start/resume from
 			}
 
@@ -427,7 +426,7 @@ func main() {
 			default:
 			}
 
-			log.Printf("[PROGRESS] Sub-forum %d (%s): Processing topic %d/%d (ID: %s, Title: %s)", currentSubForum.ID, currentSubForum.Name, topicIndex+1, len(topicsForSubForum), topic.ID, topic.Title)
+			log.Printf("[PROGRESS] Sub-forum %s (%s): Processing topic %d/%d (ID: %s, Title: %s)", currentSubForum.ID, currentSubForum.Name, topicIndex+1, len(topicsForSubForum), topic.ID, topic.Title)
 
 			// Check if topic already completed or has a persistent error
 			if archivalState.IsTopicArchived(topic.ID) {
@@ -502,10 +501,10 @@ func main() {
 				pageID := fmt.Sprintf("%s_p%d", topic.ID, actualPageNum)
 
 				// Resume logic for pages within a topic
-				if strconv.Itoa(currentSubForum.ID) == skipToSubForumID &&
+				if currentSubForum.ID == skipToSubForumID &&
 					topic.ID == skipToTopicID &&
 					actualPageNum < startPageForTopic {
-					log.Printf("[INFO] Resume: SF %d, Topic %s: Skipping already processed page %d (resuming from page %d).", currentSubForum.ID, topic.ID, actualPageNum, startPageForTopic)
+					log.Printf("[INFO] Resume: SF %s, Topic %s: Skipping already processed page %d (resuming from page %d).", currentSubForum.ID, topic.ID, actualPageNum, startPageForTopic)
 					continue
 				}
 
@@ -527,7 +526,7 @@ func main() {
 				}
 
 				// Store page HTML
-				savedPath, err := storePageHTML(htmlStorer, topic, strconv.Itoa(currentSubForum.ID), actualPageNum, htmlContentBytes) // Converted currentSubForum.ID
+				savedPath, err := storePageHTML(htmlStorer, topic, currentSubForum.ID, actualPageNum, htmlContentBytes) // Converted currentSubForum.ID
 				if err != nil {
 					log.Printf("[ERROR] STORAGE: Failed to store page %s for topic %s: %v", pageURL, topic.ID, err)
 					// archivalState.RecordTopicError(topic.ID, fmt.Sprintf("Failed to store page %s: %v", pageURL, err)) // Removed
@@ -579,8 +578,8 @@ func main() {
 			}
 		} // End topic loop
 
-		archivalState.LastProcessedSubForumID = strconv.Itoa(currentSubForum.ID) // Converted currentSubForum.ID
-		archivalState.ProcessedTopicIDsInCurrentSubForum = []string{}            // Clear for next sub-forum
+		archivalState.LastProcessedSubForumID = currentSubForum.ID    // Converted currentSubForum.ID
+		archivalState.ProcessedTopicIDsInCurrentSubForum = []string{} // Clear for next sub-forum
 		allTopicsInSFProcessed := true
 		for _, t := range topicsForSubForum {
 			if !archivalState.IsTopicArchived(t.ID) {
@@ -592,19 +591,19 @@ func main() {
 			// Check if already completed to avoid duplicates, before trying to use util.UniqueStrings
 			alreadyMarkedCompleted := false
 			for _, completedID := range archivalState.CompletedSubForumIDs {
-				if completedID == strconv.Itoa(currentSubForum.ID) { // Converted currentSubForum.ID
+				if completedID == currentSubForum.ID { // Converted currentSubForum.ID
 					alreadyMarkedCompleted = true
 					break
 				}
 			}
 			if !alreadyMarkedCompleted {
-				archivalState.CompletedSubForumIDs = append(archivalState.CompletedSubForumIDs, strconv.Itoa(currentSubForum.ID)) // Converted currentSubForum.ID
+				archivalState.CompletedSubForumIDs = append(archivalState.CompletedSubForumIDs, currentSubForum.ID) // Converted currentSubForum.ID
 				// TODO: Implement or provide util.UniqueStrings if needed, or ensure this append logic is sufficient.
 				archivalState.CompletedSubForumIDs = uniqueStringsSlice(archivalState.CompletedSubForumIDs) // Use local helper
 			}
 		}
 
-		log.Printf("[INFO] <<< Finished processing Sub-Forum ID: %d. Duration: %s. Topics in SF: %d, Pages Archived in this SF: %d",
+		log.Printf("[INFO] <<< Finished processing Sub-Forum ID: %s. Duration: %s. Topics in SF: %d, Pages Archived in this SF: %d",
 			currentSubForum.ID, time.Since(sfProcessStartTime).Round(time.Second), len(topicsForSubForum), pagesArchivedInSubForum) // Used pagesArchivedInSubForum
 		// metrics.LogBatchMetrics(currentBatchMetrics, cfg.SubForumListFile) // TODO: Implement historical/summary metric logging for sub-forum if needed
 		// currentBatchMetrics = metrics.NewBatchMetrics() // Reset for next sub-forum OR do a single batch metric for the whole run.

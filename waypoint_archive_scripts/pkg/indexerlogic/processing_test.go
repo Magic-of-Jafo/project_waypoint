@@ -24,14 +24,14 @@ func TestProcessTopicsAndSubForums(t *testing.T) {
 
 	want := []data.SubForum{
 		{
-			ID: 1, Name: "SubForum One", URL: "http://forum.com/sf1", TopicCount: 2,
+			ID: "sf1", Name: "SubForum One", URL: "http://forum.com/sf1", TopicCount: 2,
 			Topics: []data.Topic{
 				{ID: "t1", SubForumID: "sf1", Title: "T1", URL: "topic_u1"},
 				{ID: "t3", SubForumID: "sf1", Title: "T3", URL: "topic_u3"},
 			},
 		},
 		{
-			ID: 2, Name: "SubForum Two", URL: "http://forum.com/sf2", TopicCount: 1,
+			ID: "sf2", Name: "SubForum Two", URL: "http://forum.com/sf2", TopicCount: 1,
 			Topics: []data.Topic{
 				{ID: "t2", SubForumID: "sf2", Title: "T2", URL: "topic_u2"},
 			},
@@ -61,7 +61,7 @@ func TestProcessTopicsAndSubForums(t *testing.T) {
 	}
 	wantMissingSf := []data.SubForum{
 		{
-			ID: 99, Name: "sf_missing", URL: "", TopicCount: 1, // Changed "sf_missing" to an arbitrary int like 99
+			ID: "sf_missing", Name: "sf_missing", URL: "", TopicCount: 1, // Changed "sf_missing" to an arbitrary int like 99
 			Topics: []data.Topic{{ID: "t4", SubForumID: "sf_missing", Title: "T4", URL: "topic_u4"}},
 		},
 	}
@@ -76,14 +76,14 @@ func TestProcessTopicsAndSubForums(t *testing.T) {
 
 func TestSortSubForumsByTopicCount(t *testing.T) {
 	subForums := []data.SubForum{
-		{ID: 1, Name: "SF1", TopicCount: 100},
-		{ID: 2, Name: "SF2", TopicCount: 50},
-		{ID: 3, Name: "SF3", TopicCount: 150},
+		{ID: "sf1", Name: "SF1", TopicCount: 100},
+		{ID: "sf2", Name: "SF2", TopicCount: 50},
+		{ID: "sf3", Name: "SF3", TopicCount: 150},
 	}
 	want := []data.SubForum{
-		{ID: 2, Name: "SF2", TopicCount: 50},
-		{ID: 1, Name: "SF1", TopicCount: 100},
-		{ID: 3, Name: "SF3", TopicCount: 150},
+		{ID: "sf2", Name: "SF2", TopicCount: 50},
+		{ID: "sf1", Name: "SF1", TopicCount: 100},
+		{ID: "sf3", Name: "SF3", TopicCount: 150},
 	}
 
 	SortSubForumsByTopicCount(subForums)
@@ -94,22 +94,9 @@ func TestSortSubForumsByTopicCount(t *testing.T) {
 
 func TestGenerateMasterTopicList(t *testing.T) {
 	sortedSubForums := []data.SubForum{
-		{
-			ID: 1, TopicCount: 1, Topics: []data.Topic{
-				{ID: "t1", SubForumID: "sf1"},
-			},
-		},
-		{
-			ID: 2, TopicCount: 2, Topics: []data.Topic{
-				{ID: "t2", SubForumID: "sf2"},
-				{ID: "t1", SubForumID: "sf2"}, // Duplicate Topic ID t1
-			},
-		},
-		{
-			ID: 3, TopicCount: 1, Topics: []data.Topic{
-				{ID: "t3", SubForumID: "sf3"},
-			},
-		},
+		{ID: "sf1", TopicCount: 1, Topics: []data.Topic{{ID: "t1", SubForumID: "sf1"}}},
+		{ID: "sf2", TopicCount: 2, Topics: []data.Topic{{ID: "t2", SubForumID: "sf2"}, {ID: "t1", SubForumID: "sf2"}}},
+		{ID: "sf3", TopicCount: 1, Topics: []data.Topic{{ID: "t3", SubForumID: "sf3"}}},
 	}
 
 	want := data.MasterTopicList{
@@ -194,13 +181,13 @@ func TestLoadAndProcessTopicIndex(t *testing.T) {
 	// Expected subforums (for []data.SubForum check)
 	wantSubForums := []data.SubForum{
 		{
-			ID: 2, Name: "Forum Two", URL: "http://forum.com/f/sf2", TopicCount: 1,
+			ID: "sf2", Name: "Forum Two", URL: "http://forum.com/f/sf2", TopicCount: 1,
 			Topics: []data.Topic{
 				{ID: "t201", SubForumID: "sf2", Title: "SF2 Topic 1", URL: "url201", AuthorUsername: "userE", Replies: 30, Views: 300, LastPostUsername: "userF", LastPostTimestampRaw: "2023-01-03T00:00:00Z", IsSticky: false, IsLocked: true},
 			},
 		},
 		{
-			ID: 1, Name: "Forum One", URL: "http://forum.com/f/sf1", TopicCount: 2,
+			ID: "sf1", Name: "Forum One", URL: "http://forum.com/f/sf1", TopicCount: 2,
 			Topics: []data.Topic{
 				{ID: "t101", SubForumID: "sf1", Title: "SF1 Topic 1", URL: "url101", AuthorUsername: "userA", Replies: 10, Views: 100, LastPostUsername: "userB", LastPostTimestampRaw: "2023-01-01T00:00:00Z", IsSticky: false, IsLocked: false},
 				{ID: "t102", SubForumID: "sf1", Title: "SF1 Topic 2", URL: "url102", AuthorUsername: "userC", Replies: 20, Views: 200, LastPostUsername: "userD", LastPostTimestampRaw: "2023-01-02T00:00:00Z", IsSticky: true, IsLocked: false},

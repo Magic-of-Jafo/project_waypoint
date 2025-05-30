@@ -55,14 +55,21 @@ func LoadHTMLPage(filePath string) (*HTMLPage, error) {
 func (p *HTMLPage) GetPostBlocks() ([]PostBlock, error) {
 	var blocks []PostBlock
 
-	// The selector targets <tr> elements within the *second* table of class "normal".
-	// This second table seems to be the main container for posts, distinguishing it
-	// from the first table.normal (used for breadcrumbs).
-	// It further ensures these <tr> elements contain the characteristic <td> cells for user info and post content.
-	// Note: This selector is specific to the observed structure of "The Magic Cafe" HTML.
-	selector := "body > div#container > table.normal:nth-of-type(2) > tbody > tr:has(td.normal.bgc1.c.w13.vat):has(td.normal.bgc1.vat.w90)"
+	// Find all tables with class "normal" that are direct children of "div#container".
+	// Then, select the second one (index 1), which is expected to be the posts table.
+	postsTable := p.Content.Find("body > div#container > table.normal").Eq(1)
 
-	p.Content.Find(selector).Each(func(i int, s *goquery.Selection) {
+	if postsTable.Length() == 0 {
+		// This means the second table.normal was not found. Could be an unexpected page structure.
+		// Return empty blocks, let caller decide if it's an error.
+		return blocks, nil
+	}
+
+	// Now, within this specific table, find the <tr> elements that are actual posts.
+	// These <tr> elements must contain the characteristic <td> cells for user info and post content.
+	postRowSelector := "tr:has(td.normal.bgc1.c.w13.vat):has(td.normal.bgc1.vat.w90)"
+
+	postsTable.Find(postRowSelector).Each(func(i int, s *goquery.Selection) {
 		blocks = append(blocks, PostBlock{Selection: s})
 	})
 
