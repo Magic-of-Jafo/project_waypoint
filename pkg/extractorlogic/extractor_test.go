@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"pkg/data" // Corrected to fully qualified path
+	"project-waypoint/pkg/data" // Corrected to fully qualified path
 
 	"github.com/PuerkitoBio/goquery"
 )

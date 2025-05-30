@@ -6,8 +6,8 @@ import (
 	"strconv"
 	"strings"
 
-	"pkg/data"
-	"pkg/parser"
+	"project-waypoint/pkg/data"
+	"project-waypoint/pkg/parser"
 
 	"github.com/PuerkitoBio/goquery"
 )

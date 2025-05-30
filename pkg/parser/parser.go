@@ -12,57 +12,68 @@ import (
 // ExtractAuthorUsername extracts the author's username from a post HTML block.
 // It returns the username and an error if extraction fails.
 func ExtractAuthorUsername(postHTMLBlock *goquery.Document) (string, error) {
-	selector := "td.normal.bgc1.c.w13.vat > strong:first-child"
-	authorUsername := ""
-	var err error
+	authorCellSelector := "td.normal.bgc1.c.w13.vat"
+	authorCell := postHTMLBlock.Find("html body " + authorCellSelector).First()
 
-	postHTMLBlock.Find(selector).EachWithBreak(func(i int, s *goquery.Selection) bool {
-		authorUsername = s.Text()
-		if authorUsername == "" {
-			err = fmt.Errorf("found username element with selector '%s' but it was empty", selector)
-			return false // Stop iteration
-		}
-		return false // Found it, stop iteration
-	})
-
-	if err != nil {
-		return "", err
+	if authorCell.Length() == 0 {
+		return "", fmt.Errorf("author cell not found with selector: %s (searched from html body)", authorCellSelector)
 	}
 
+	strongEl := authorCell.ChildrenFiltered("strong").First()
+	if strongEl.Length() == 0 {
+		// For debugging, one might want to see the HTML of the cell:
+		// cellHTML, _ := authorCell.Html()
+		// return "", fmt.Errorf("strong element (username) not found as first strong child within cell selected by '%s'. Cell HTML: %s", authorCellSelector, cellHTML)
+		return "", fmt.Errorf("strong element (username) not found as first strong child within cell selected by '%s'", authorCellSelector)
+	}
+
+	authorUsername := strings.TrimSpace(strongEl.Text())
 	if authorUsername == "" {
-		return "", fmt.Errorf("author username element not found with selector: %s", selector)
+		return "", fmt.Errorf("found username strong element but it was empty (selector: %s > strong:first)", authorCellSelector)
 	}
-
 	return authorUsername, nil
 }
 
 // ExtractTimestamp extracts and parses the post timestamp.
 // It returns the timestamp in "YYYY-MM-DD HH:MM:SS" format and an error if extraction or parsing fails.
 func ExtractTimestamp(postHTMLBlock *goquery.Document) (string, error) {
-	selector := "td.normal.bgc1.vat.w90 > div.vt1.liketext > div.like_left > span.b"
-	rawTimestampStr := ""
-	var extractionErr error
+	timestampCellSelector := "td.normal.bgc1.vat.w90"
+	timestampCell := postHTMLBlock.Find("html body " + timestampCellSelector).First()
 
-	postHTMLBlock.Find(selector).EachWithBreak(func(i int, s *goquery.Selection) bool {
-		rawTimestampStr = s.Text()
-		if rawTimestampStr == "" {
-			extractionErr = fmt.Errorf("found timestamp element with selector '%s' but it was empty", selector)
-			return false // stop iteration
-		}
-		// Remove "Posted: " prefix if it exists and trim whitespace
-		if strings.HasPrefix(rawTimestampStr, "Posted: ") {
-			rawTimestampStr = rawTimestampStr[len("Posted: "):]
-		}
-		rawTimestampStr = strings.TrimSpace(rawTimestampStr)
-		return false // Found it, stop iteration
-	})
-
-	if extractionErr != nil {
-		return "", extractionErr
+	if timestampCell.Length() == 0 {
+		return "", fmt.Errorf("timestamp cell not found with selector: %s (searched from html body)", timestampCellSelector)
 	}
 
+	// Selector for the span.b from the context of the timestampCell
+	targetSpanSelector := "div.vt1.liketext > div.like_left > span.b"
+	targetSpan := timestampCell.Find(targetSpanSelector).First()
+
+	if targetSpan.Length() == 0 {
+		// For debugging:
+		// cellHTML, _ := timestampCell.Html()
+		// return "", fmt.Errorf("timestamp span.b element not found with selector '%s' within cell '%s'. Cell HTML: %s", targetSpanSelector, timestampCellSelector, cellHTML)
+		return "", fmt.Errorf("timestamp span.b element not found with selector '%s' within cell '%s'", targetSpanSelector, timestampCellSelector)
+	}
+	rawTimestampStr := targetSpan.Text()
 	if rawTimestampStr == "" {
-		return "", fmt.Errorf("timestamp element not found with selector: %s", selector)
+		return "", fmt.Errorf("found timestamp element (span.b) but it was empty (selector: %s > %s)", timestampCellSelector, targetSpanSelector)
+	}
+
+	// Normalize non-breaking spaces to regular spaces
+	rawTimestampStr = strings.ReplaceAll(rawTimestampStr, "\u00a0", " ")
+
+	// Trim any leading/trailing whitespace
+	rawTimestampStr = strings.TrimSpace(rawTimestampStr)
+
+	// Remove exact prefix, including colon and following space
+	if strings.HasPrefix(rawTimestampStr, "Posted: ") {
+		rawTimestampStr = strings.TrimPrefix(rawTimestampStr, "Posted: ")
+	}
+
+	fmt.Printf("DEBUG: rawTimestampStr = %#v\n", rawTimestampStr)
+
+	if rawTimestampStr == "" { // Check after trimming "Posted:"
+		return "", fmt.Errorf("timestamp string was empty after trimming 'Posted:' (selector: %s > %s)", timestampCellSelector, targetSpanSelector)
 	}
 
 	// Define the expected timestamp layouts. Order matters: try more specific or common ones first.

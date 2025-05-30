@@ -7,145 +7,149 @@ import (
 	"github.com/PuerkitoBio/goquery"
 )
 
-const (
-	mockPostHTML1 = `
-<tr>
-    <td class="normal bgc1 c w13 vat">
-        <strong>TestUser1</strong><br />
-        <a href="bb_profile.php?mode=view&amp;user=1"><img class="nb" src="images/avatars/nopic.gif" vspace="3" alt="View Profile" title="View Profile" /></a><br /><span class="smalltext">
-        <strong>Regular user</strong><br />
-        SomeLocation<br />
-        100 Posts</span><br />
-        <a href="bb_profile.php?mode=view&amp;user=1"><img class="nb vab" src="images/profile.gif" alt="Profile of TestUser1" title="Profile of TestUser1" /></a>
-    </td>
-    <td class="normal bgc1 vat w90">
-        <div class="vt1 liketext">
-            <div class="like_left">
-                <span class="b">
-                <a name="0"></a><img class="nb vam" src="images/posticon.gif" alt="Post Icon" title="Post Icon" /> 
-                Posted: Mar 15, 2024 10:30 am </span>&nbsp;&nbsp;
-            </div>
-            <div class="like_right"><img class="vab" src="images/likes.gif" alt="There are no likes for this post." title="There are no  likes for this post." /><span id="p_12345">0</span></div>
-        </div>
-        <div class="w100">
-            Post content here.
-        </div>
-    </td>
-</tr>`
+// Utility to wrap a fragment in valid HTML for goquery
+func wrapHTML(body string) *goquery.Document {
+	fullHTML := `<!DOCTYPE html><html><body><table>` + body + `</table></body></html>`
+	doc, err := goquery.NewDocumentFromReader(strings.NewReader(fullHTML))
+	if err != nil {
+		panic("failed to parse test HTML: " + err.Error())
+	}
+	return doc
+}
 
-	mockPostHTMLNoUsername = `
+var (
+	mockPostDoc1 = wrapHTML(`
 <tr>
-    <td class="normal bgc1 c w13 vat">
-        <!-- No username strong tag -->
-    </td>
-    <td class="normal bgc1 vat w90">
-        <div class="vt1 liketext">
-            <div class="like_left">
-                <span class="b">
-                <a name="0"></a><img class="nb vam" src="images/posticon.gif" alt="Post Icon" title="Post Icon" /> 
-                Posted: Mar 15, 2024 10:30 am </span>&nbsp;&nbsp;
-            </div>
-            <div class="like_right"><span id="p_12345">0</span></div>
-        </div>
-    </td>
-</tr>`
+	<td class="normal bgc1 c w13 vat">
+		<strong>TestUser1</strong><br />
+		<a href="bb_profile.php?mode=view&amp;user=1"><img class="nb" src="images/avatars/nopic.gif" /></a><br />
+		<span class="smalltext">
+			<strong>Regular user</strong><br />SomeLocation<br />100 Posts
+		</span><br />
+		<a href="bb_profile.php?mode=view&amp;user=1"><img class="nb vab" src="images/profile.gif" /></a>
+	</td>
+	<td class="normal bgc1 vat w90">
+		<div class="vt1 liketext">
+			<div class="like_left">
+				<span class="b"><a name="0"></a><img class="nb vam" src="images/posticon.gif" />
+				Posted: Mar 15, 2024 10:30 am</span>
+			</div>
+			<div class="like_right"><img class="vab" src="images/likes.gif" /><span id="p_12345">0</span></div>
+		</div>
+		<div class="w100">Post content here.</div>
+	</td>
+</tr>`)
 
-	mockPostHTMLNoTimestamp = `
+	mockPostDocNoUsername = wrapHTML(`
 <tr>
-    <td class="normal bgc1 c w13 vat">
-        <strong>TestUser1</strong>
-    </td>
-    <td class="normal bgc1 vat w90">
-        <div class="vt1 liketext">
-            <div class="like_left">
-                <!-- No timestamp span -->
-            </div>
-            <div class="like_right"><span id="p_12345">0</span></div>
-        </div>
-    </td>
-</tr>`
-	mockPostHTMLMalformedTimestamp = `
+	<td class="normal bgc1 c w13 vat">
+		<!-- No strong tag -->
+	</td>
+	<td class="normal bgc1 vat w90">
+		<div class="vt1 liketext">
+			<div class="like_left">
+				<span class="b"><a name="0"></a><img src="images/posticon.gif" />
+				Posted: Mar 15, 2024 10:30 am</span>
+			</div>
+			<div class="like_right"><span id="p_12345">0</span></div>
+		</div>
+	</td>
+</tr>`)
+
+	mockPostDocNoTimestamp = wrapHTML(`
 <tr>
-    <td class="normal bgc1 c w13 vat">
-        <strong>TestUser1</strong>
-    </td>
-    <td class="normal bgc1 vat w90">
-        <div class="vt1 liketext">
-            <div class="like_left">
-                 <span class="b">Posted: March 15th, 2024, Bad Time</span>
-            </div>
-            <div class="like_right"><span id="p_12345">0</span></div>
-        </div>
-    </td>
-</tr>`
-	mockPostHTMLNoPostID = `
+	<td class="normal bgc1 c w13 vat">
+		<strong>TestUser1</strong>
+	</td>
+	<td class="normal bgc1 vat w90">
+		<div class="vt1 liketext">
+			<div class="like_left">
+				<!-- Missing timestamp span -->
+			</div>
+			<div class="like_right"><span id="p_12345">0</span></div>
+		</div>
+	</td>
+</tr>`)
+
+	mockPostDocMalformedTimestamp = wrapHTML(`
 <tr>
-    <td class="normal bgc1 c w13 vat">
-        <strong>TestUser1</strong>
-    </td>
-    <td class="normal bgc1 vat w90">
-        <div class="vt1 liketext">
-            <div class="like_left">
-                <span class="b">
-                <a name="0"></a><img class="nb vam" src="images/posticon.gif" alt="Post Icon" title="Post Icon" /> 
-                Posted: Mar 15, 2024 10:30 am </span>&nbsp;&nbsp;
-            </div>
-            <div class="like_right"><!-- No Post ID span --></div>
-        </div>
-    </td>
-</tr>`
-	mockPostHTMLNoPostOrder = `
+	<td class="normal bgc1 c w13 vat">
+		<strong>TestUser1</strong>
+	</td>
+	<td class="normal bgc1 vat w90">
+		<div class="vt1 liketext">
+			<div class="like_left">
+				<span class="b">Posted: March 15th, 2024, Bad Time</span>
+			</div>
+			<div class="like_right"><span id="p_12345">0</span></div>
+		</div>
+	</td>
+</tr>`)
+
+	mockPostDocNoPostID = wrapHTML(`
 <tr>
-    <td class="normal bgc1 c w13 vat">
-        <strong>TestUser1</strong>
-    </td>
-    <td class="normal bgc1 vat w90">
-        <div class="vt1 liketext">
-            <div class="like_left">
-                <span class="b">
-                <!-- No anchor for post order -->
-                Posted: Mar 15, 2024 10:30 am </span>&nbsp;&nbsp;
-            </div>
-            <div class="like_right"><span id="p_12345">0</span></div>
-        </div>
-    </td>
-</tr>`
+	<td class="normal bgc1 c w13 vat">
+		<strong>TestUser1</strong>
+	</td>
+	<td class="normal bgc1 vat w90">
+		<div class="vt1 liketext">
+			<div class="like_left">
+				<span class="b">Posted: Mar 15, 2024 10:30 am</span>
+			</div>
+			<div class="like_right"><!-- No span with id="p_*" --></div>
+		</div>
+	</td>
+</tr>`)
+
+	mockPostDocNoPostOrder = wrapHTML(`
+<tr>
+	<td class="normal bgc1 c w13 vat">
+		<strong>TestUser1</strong>
+	</td>
+	<td class="normal bgc1 vat w90">
+		<div class="vt1 liketext">
+			<div class="like_left">
+				<span class="b">
+					<!-- Missing anchor with name attribute -->
+					Posted: Mar 15, 2024 10:30 am
+				</span>
+			</div>
+			<div class="like_right"><span id="p_12345">0</span></div>
+		</div>
+	</td>
+</tr>`)
 )
 
 func TestExtractAuthorUsername(t *testing.T) {
 	tests := []struct {
-		name        string
-		htmlContent string
-		wantUser    string
-		wantErr     bool
+		name     string
+		doc      *goquery.Document
+		wantUser string
+		wantErr  bool
 	}{
 		{
-			name:        "Valid username",
-			htmlContent: mockPostHTML1,
-			wantUser:    "TestUser1",
-			wantErr:     false,
+			name:     "Valid username",
+			doc:      mockPostDoc1,
+			wantUser: "TestUser1",
+			wantErr:  false,
 		},
 		{
-			name:        "No username element",
-			htmlContent: mockPostHTMLNoUsername,
-			wantUser:    "",
-			wantErr:     true,
+			name:     "No username element",
+			doc:      mockPostDocNoUsername,
+			wantUser: "",
+			wantErr:  true,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			doc, err := goquery.NewDocumentFromReader(strings.NewReader(tt.htmlContent))
-			if err != nil {
-				t.Fatalf("Failed to parse HTML: %v", err)
-			}
-			user, err := ExtractAuthorUsername(doc)
+			gotUser, err := ExtractAuthorUsername(tt.doc)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("ExtractAuthorUsername() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
-			if user != tt.wantUser {
-				t.Errorf("ExtractAuthorUsername() gotUser = %v, want %v", user, tt.wantUser)
+			if gotUser != tt.wantUser {
+				t.Errorf("ExtractAuthorUsername() = %v, want %v", gotUser, tt.wantUser)
 			}
 		})
 	}
@@ -154,27 +158,27 @@ func TestExtractAuthorUsername(t *testing.T) {
 func TestExtractTimestamp(t *testing.T) {
 	tests := []struct {
 		name           string
-		htmlContent    string
+		doc            *goquery.Document
 		wantTimestamp  string
 		wantErr        bool
 		substringInErr string // If wantErr is true, check if error contains this
 	}{
 		{
 			name:          "Valid timestamp",
-			htmlContent:   mockPostHTML1,
+			doc:           mockPostDoc1,
 			wantTimestamp: "2024-03-15 10:30:00",
 			wantErr:       false,
 		},
 		{
 			name:           "No timestamp element",
-			htmlContent:    mockPostHTMLNoTimestamp,
+			doc:            mockPostDocNoTimestamp,
 			wantTimestamp:  "",
 			wantErr:        true,
-			substringInErr: "timestamp element not found",
+			substringInErr: "timestamp span.b element not found",
 		},
 		{
 			name:           "Malformed timestamp string",
-			htmlContent:    mockPostHTMLMalformedTimestamp,
+			doc:            mockPostDocMalformedTimestamp,
 			wantTimestamp:  "",
 			wantErr:        true,
 			substringInErr: "failed to parse timestamp",
@@ -183,11 +187,7 @@ func TestExtractTimestamp(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			doc, err := goquery.NewDocumentFromReader(strings.NewReader(tt.htmlContent))
-			if err != nil {
-				t.Fatalf("Failed to parse HTML: %v", err)
-			}
-			timestamp, err := ExtractTimestamp(doc)
+			timestamp, err := ExtractTimestamp(tt.doc)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("ExtractTimestamp() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -204,32 +204,28 @@ func TestExtractTimestamp(t *testing.T) {
 
 func TestExtractPostID(t *testing.T) {
 	tests := []struct {
-		name        string
-		htmlContent string
-		wantPostID  string
-		wantErr     bool
+		name       string
+		doc        *goquery.Document
+		wantPostID string
+		wantErr    bool
 	}{
 		{
-			name:        "Valid PostID",
-			htmlContent: mockPostHTML1,
-			wantPostID:  "12345",
-			wantErr:     false,
+			name:       "Valid PostID",
+			doc:        mockPostDoc1,
+			wantPostID: "12345",
+			wantErr:    false,
 		},
 		{
-			name:        "No PostID element",
-			htmlContent: mockPostHTMLNoPostID,
-			wantPostID:  "",
-			wantErr:     true,
+			name:       "No PostID element",
+			doc:        mockPostDocNoPostID,
+			wantPostID: "",
+			wantErr:    true,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			doc, err := goquery.NewDocumentFromReader(strings.NewReader(tt.htmlContent))
-			if err != nil {
-				t.Fatalf("Failed to parse HTML: %v", err)
-			}
-			postID, err := ExtractPostID(doc)
+			postID, err := ExtractPostID(tt.doc)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("ExtractPostID() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -244,21 +240,21 @@ func TestExtractPostID(t *testing.T) {
 func TestExtractPostOrderOnPage(t *testing.T) {
 	tests := []struct {
 		name           string
-		htmlContent    string
+		doc            *goquery.Document
 		wantPostOrder  int
 		wantErr        bool
 		substringInErr string
 	}{
 		{
 			name:          "Valid PostOrder",
-			htmlContent:   mockPostHTML1,
+			doc:           mockPostDoc1,
 			wantPostOrder: 0,
 			wantErr:       false,
 		},
 		{
 			name:           "No PostOrder anchor element",
-			htmlContent:    mockPostHTMLNoPostOrder,
-			wantPostOrder:  0, // Expect 0 for error cases returning int
+			doc:            mockPostDocNoPostOrder,
+			wantPostOrder:  0,
 			wantErr:        true,
 			substringInErr: "post order anchor element not found",
 		},
@@ -266,11 +262,7 @@ func TestExtractPostOrderOnPage(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			doc, err := goquery.NewDocumentFromReader(strings.NewReader(tt.htmlContent))
-			if err != nil {
-				t.Fatalf("Failed to parse HTML: %v", err)
-			}
-			postOrder, err := ExtractPostOrderOnPage(doc)
+			postOrder, err := ExtractPostOrderOnPage(tt.doc)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("ExtractPostOrderOnPage() error = %v, wantErr %v", err, tt.wantErr)
 				return
