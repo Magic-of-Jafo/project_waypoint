@@ -269,3 +269,160 @@ func TestParseContentBlocks(t *testing.T) {
 // - input that doesn't match the expected post content container structure
 // - posts with <br> tags in new_text
 // - posts with links or other inline HTML in new_text
+
+func TestCleanNewTextBlock(t *testing.T) {
+	// Suppress log output during tests
+	// Original log output can be restored if needed for debugging specific tests
+	// originalLogOutput := log.Writer()
+	// log.SetOutput(io.Discard)
+	// t.Cleanup(func() {
+	// log.SetOutput(originalLogOutput)
+	// })
+
+	tests := []struct {
+		name        string
+		rawHTML     string
+		expectedTxt string
+		expectError bool
+	}{
+		{
+			name:        "Simple HTML tags",
+			rawHTML:     "<div><p>Hello <b>World</b></p><span>Some text</span></div>",
+			expectedTxt: "Hello World\\nSome text", // Newline from div/p
+		},
+		{
+			name:        "HTML with line breaks",
+			rawHTML:     "Text before<br>Text after<br/>Another line.",
+			expectedTxt: "Text before\\nText after\\nAnother line.",
+		},
+		{
+			name:        "Image with alt text",
+			rawHTML:     `An image: <img src="emoji.png" alt=":) Smile"> here.`,
+			expectedTxt: "An image: :) Smile here.",
+		},
+		{
+			name:        "Image with title text",
+			rawHTML:     `An image: <img src="emoji.png" title="Wink ;)"> here.`,
+			expectedTxt: "An image: Wink ;) here.",
+		},
+		{
+			name:        "Image with no alt or title",
+			rawHTML:     `An image: <img src="icon.png"> here.`,
+			expectedTxt: "An image: [image] here.",
+		},
+		{
+			name:        "Script and style tags",
+			rawHTML:     "<p>Visible</p><script>alert('XSS')</script><style>body{color:red}</style><span>More visible</span>",
+			expectedTxt: "Visible\\nMore visible", // Newline from p
+		},
+		{
+			name:        "Basic BBCode bold and italic",
+			rawHTML:     "Text with [b]bold[/b] and [i]italic[/i].",
+			expectedTxt: "Text with bold and italic.",
+		},
+		{
+			name:        "BBCode URL with text",
+			rawHTML:     "Check [url=http://example.com]this link[/url].",
+			expectedTxt: "Check this link.",
+		},
+		{
+			name:        "BBCode simple URL",
+			rawHTML:     "Link: [url]http://example.com[/url]",
+			expectedTxt: "Link: http://example.com",
+		},
+		{
+			name:        "BBCode color and size (content preserved)",
+			rawHTML:     "[color=red]Red text[/color] and [size=3]big text[/size].",
+			expectedTxt: "Red text and big text.",
+		},
+		{
+			name:        "BBCode quote",
+			rawHTML:     "[quote]This is a quote.[/quote] And [quote=User]A specific quote.[/quote]",
+			expectedTxt: "This is a quote. And A specific quote.",
+		},
+		{
+			name:        "BBCode image",
+			rawHTML:     "Image BBCode: [img]http://example.com/pic.jpg[/img]",
+			expectedTxt: "Image BBCode: [image]",
+		},
+		{
+			name:        "BBCode list",
+			rawHTML:     "A list: [list][*]Item 1[*]Item 2[/list] another item.",
+			expectedTxt: "A list: \\nItem 1\\nItem 2\\nanother item.",
+		},
+		{
+            name:        "BBCode list with type",
+            rawHTML:     "Numbered: [list=1][*]First[*]Second[/list]",
+            expectedTxt: "Numbered: \\nFirst\\nSecond",
+        },
+		{
+			name:        "Whitespace normalization - multiple spaces and tabs",
+			rawHTML:     "This   has   too\\tmany\\t spaces.",
+			expectedTxt: "This has too many spaces.",
+		},
+		{
+			name:        "Whitespace normalization - multiple newlines",
+			rawHTML:     "Paragraph 1\\n\\n\\nParagraph 2\\n\\n\\n\\nParagraph 3",
+			expectedTxt: "Paragraph 1\\n\\nParagraph 2\\n\\nParagraph 3",
+		},
+		{
+			name:        "Whitespace normalization - leading/trailing spaces on lines with newlines",
+			rawHTML:     "  Line with spaces before newline  \\n  Another one  ",
+			expectedTxt: "Line with spaces before newline\\nAnother one",
+		},
+		{
+			name:        "Complex mix HTML and BBCode",
+			rawHTML:     "<div><p>Starting [b]boldly[/b]</p>An image: <img alt=\":P\"> and [url=http://test.com]a link[/url].<br/>[quote=Dude]He said...[/quote]</div>",
+			expectedTxt: "Starting boldly\\nAn image: :P and a link.\\nHe said...",
+		},
+		{
+			name: "Empty input",
+			rawHTML:     "",
+			expectedTxt: "",
+		},
+		{
+			name:        "Only whitespace HTML",
+			rawHTML:     "<div>   <p> \\t </p>   </div>",
+			expectedTxt: "", // Newlines from div/p, then trimmed
+		},
+		{
+            name:        "BBCode [s] strikethrough",
+            rawHTML:     "This is [s]struck[/s] text.",
+            expectedTxt: "This is struck text.",
+        },
+        {
+            name:        "BBCode [noparse] tag",
+            rawHTML:     "[noparse][b]not bold[/b][/noparse]",
+            expectedTxt: "[b]not bold[/b]",
+        },
+        {
+            name:        "Nested simple BBCode (stripping outer then inner)",
+            rawHTML:     "[b][i]bold italic[/i][/b]",
+            expectedTxt: "bold italic", // Assuming sequential processing, this should work. If regex were more complex, might differ.
+        },
+        {
+            name:        "Malformed HTML (should attempt to parse and return what it can)",
+            rawHTML:     "<div><p>Correct</p<span>Missing closing p", // html.Parse is lenient
+            expectedTxt: "Correct\\nMissing closing p",
+        },
+        {
+            name:        "HTML entities (should be preserved by html.Parse and kept as text)",
+            rawHTML:     "&lt;Hello&gt; &amp; &quot;World&quot;",
+            expectedTxt: "<Hello> & \"World\"",
+        },
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cleanedText, err := CleanNewTextBlock(tt.rawHTML)
+			if tt.expectError {
+				assert.Error(t, err, "Expected an error for test: %s", tt.name)
+			} else {
+				assert.NoError(t, err, "Did not expect an error for test: %s", tt.name)
+				// For direct comparison, replace literal \\n in expected with actual newline for assert
+				expected := strings.ReplaceAll(tt.expectedTxt, "\\\\n", "\\n")
+				assert.Equal(t, expected, cleanedText, "Text mismatch for test: %s", tt.name)
+			}
+		})
+	}
+}

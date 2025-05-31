@@ -2,6 +2,7 @@ package extractorlogic
 
 import (
 	"fmt"
+	"log"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -14,8 +15,18 @@ import (
 
 // ExtractPostMetadata extracts all core metadata from a post HTML block and its file path.
 func ExtractPostMetadata(postHTMLBlock *goquery.Document, filePath string) (data.PostMetadata, error) {
+	if postHTMLBlock == nil {
+		return data.PostMetadata{}, fmt.Errorf("postHTMLBlock is nil")
+	}
+	// Log the outer HTML of the received document's selection to see its full structure
+	docHTML, err := goquery.OuterHtml(postHTMLBlock.Selection)
+	if err != nil {
+		log.Printf("[DEBUG Extractor] Error getting OuterHtml for postHTMLBlock: %v", err)
+	} else {
+		log.Printf("[DEBUG Extractor] Received postHTMLBlock OuterHtml:\n%s", docHTML)
+	}
+
 	var metadata data.PostMetadata
-	var err error
 	var errs []string // To collect multiple errors
 
 	// --- Contextual Metadata from filePath (Subtasks 6.2, 6.3) ---

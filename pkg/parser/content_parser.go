@@ -7,7 +7,16 @@ import (
 	"regexp"
 	"strings"
 
+	// "golang.org/x/net/html" // No longer needed as extractText is commented out
+
 	"github.com/PuerkitoBio/goquery"
+)
+
+var (
+	// Handles [b]text[/b], [i]text[/i], [u]text[/u]
+	// Group 1: tag name (b, i, u)
+	// Group 2: content
+	safeBasicBBCodeRegex = regexp.MustCompile(`(?is)\\[(b|i|u)\\](.*?)\\[/\\1\\]`)
 )
 
 // ParseContentBlocks takes a goquery selection representing the direct children
@@ -167,3 +176,108 @@ func ExtractQuoteDetails(quoteElement *goquery.Selection) (quotedUser string, qu
 
 	return strings.TrimSpace(quotedUser), strings.TrimSpace(quotedTimestamp), quotedText, nil
 }
+
+// processBBCodes removes common BBCode tags from a string and logs actions.
+// CURRENTLY SIMPLIFIED to only handle [b], [i], [u] to avoid regex panics.
+func processBBCodes(text string) string {
+	cleanedText := safeBasicBBCodeRegex.ReplaceAllStringFunc(text, func(match string) string {
+		submatches := safeBasicBBCodeRegex.FindStringSubmatch(match)
+		if len(submatches) == 3 { // 0: full match, 1: tag, 2: content
+			tag := submatches[1]
+			content := submatches[2]
+			log.Printf("INFO: BBCode: Simplified removal of tag [%s], preserving content: '%s'", tag, content)
+			return content
+		}
+		return match // Should not happen with this regex if it matches
+	})
+
+	// TODO: Add back other BBCode handling (url, img, list, quote, etc.) carefully
+	// For now, just return the text after [b], [i], [u] are stripped.
+
+	return cleanedText
+}
+
+// CleanNewTextBlock converts specific HTML entities to their character equivalents,
+// removes BBCode, and trims whitespace from a block of text presumed to be new content.
+func CleanNewTextBlock(text string) (string, error) {
+	// AC4.1: Decode HTML entities
+	decodedText := strings.ReplaceAll(text, "&nbsp;", " ")
+	decodedText = strings.ReplaceAll(decodedText, "&amp;", "&")
+	decodedText = strings.ReplaceAll(decodedText, "&lt;", "<")
+	decodedText = strings.ReplaceAll(decodedText, "&gt;", ">")
+	decodedText = strings.ReplaceAll(decodedText, "&quot;", "\"")
+	// Add more entities as needed, e.g., &apos; for ''
+
+	// AC4.3: Remove BBCode (using the simplified version for now)
+	bbCodeFreeText := processBBCodes(decodedText)
+
+	// AC4.2 & AC4.4: Trim leading/trailing whitespace and ensure no excessive internal spacing
+	// strings.TrimSpace handles leading/trailing. Collapsing internal spaces is more complex.
+	// For now, simple trim. A more robust solution might involve splitting by space, filtering empty strings, and rejoining.
+	finalText := strings.TrimSpace(bbCodeFreeText)
+
+	// Story 5.1.5 AC5: If, after all cleaning, the block is empty, it should be discarded.
+	// This function returns the cleaned string; the decision to discard is up to the caller.
+	return finalText, nil
+}
+
+/*
+// extractText recursively traverses HTML nodes and appends text content to the strings.Builder.
+func extractText(n *html.Node, sb *strings.Builder) {
+	if n.Type == html.TextNode {
+		sb.WriteString(n.Data)
+	} else if n.Type == html.ElementNode && n.Data == "img" {
+		var altText, titleText string
+		imgSrc := ""
+		for _, attr := range n.Attr {
+			if attr.Key == "alt" {
+				altText = attr.Val
+			}
+			if attr.Key == "title" {
+				titleText = attr.Val
+			}
+			if attr.Key == "src" {
+				imgSrc = attr.Val
+			}
+		}
+
+		if altText != "" {
+			sb.WriteString(altText)
+			log.Printf("INFO: Replaced <img> tag (src: %s) with alt text: '%s'", imgSrc, altText) // AC9
+		} else if titleText != "" {
+			sb.WriteString(titleText)
+			log.Printf("INFO: Replaced <img> tag (src: %s) with title text: '%s'", imgSrc, titleText) // AC9
+		} else {
+			sb.WriteString("[image]")                                                                                         // AC2.4 Placeholder
+			log.Printf("INFO: Replaced <img> tag (src: %s) with placeholder '[image]' as no alt or title text found", imgSrc) // AC9
+		}
+		// Do not traverse children of <img> tags as they are void elements
+		return
+	} else if n.Type == html.ElementNode && n.Data == "br" {
+		sb.WriteString("\n") // AC3.1
+		// Do not traverse children of <br> tags as they are void elements
+		return
+	}
+
+	// Child traversal
+	for c := n.FirstChild; c != nil; c = c.NextSibling {
+		if n.Type == html.ElementNode && (n.Data == "script" || n.Data == "style") {
+			// Do not traverse into script or style tags
+			continue
+		}
+		extractText(c, sb)
+	}
+
+	// Add a newline after certain block-level elements for readability (AC3.2)
+	if n.Type == html.ElementNode {
+		switch n.Data {
+		case "p", "div", "h1", "h2", "h3", "h4", "h5", "h6", "li", "blockquote", "figure", "hr", "table", "ul", "ol", "dl", "section", "article", "header", "footer", "aside", "nav":
+			// Add newline if not already ending with one or more newlines
+			// or multiple spaces which will be collapsed later.
+			// This helps ensure separation after block elements are processed.
+			// The final whitespace normalization step will clean up extra newlines.
+			sb.WriteString("\n")
+		}
+	}
+}
+*/

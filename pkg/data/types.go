@@ -2,13 +2,15 @@ package data
 
 // PostMetadata holds the extracted metadata for a single forum post.
 type PostMetadata struct {
-	PostID          string `json:"post_id"`
-	TopicID         string `json:"topic_id"`
-	SubForumID      string `json:"subforum_id"`
-	PageNumber      int    `json:"page_number"`
-	PostOrderOnPage int    `json:"post_order_on_page"`
-	AuthorUsername  string `json:"author_username"`
-	Timestamp       string `json:"timestamp"` // Formatted "YYYY-MM-DD HH:MM:SS"
+	PostID          string       `json:"post_id"`
+	TopicID         string       `json:"topic_id"`
+	SubForumID      string       `json:"subforum_id"`
+	PageNumber      int          `json:"page_number"`
+	PostOrderOnPage int          `json:"post_order_on_page"`
+	PostURL         string       `json:"post_url,omitempty"`         // Added for Story 3.5
+	AuthorUsername  string       `json:"author_username"`
+	Timestamp       string       `json:"timestamp"` // Formatted "YYYY-MM-DD HH:MM:SS"
+	ParsedContent   []ContentBlock `json:"content_blocks,omitempty"` // Updated tag for Story 3.5, was parsed_content
 }
 
 // ContentBlockType defines the type of content block.

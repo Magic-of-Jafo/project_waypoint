@@ -31,7 +31,7 @@ var (
 	<td class="normal bgc1 vat w90">
 		<div class="vt1 liketext">
 			<div class="like_left">
-				<span class="b"><a name="0"></a><img class="nb vam" src="images/posticon.gif" />
+				<a name="0"></a> <span class="b"><img class="nb vam" src="images/posticon.gif" />
 				Posted: Mar 15, 2024 10:30 am</span>
 			</div>
 			<div class="like_right"><img class="vab" src="images/likes.gif" /><span id="p_12345">0</span></div>
@@ -174,7 +174,7 @@ func TestExtractTimestamp(t *testing.T) {
 			doc:            mockPostDocNoTimestamp,
 			wantTimestamp:  "",
 			wantErr:        true,
-			substringInErr: "timestamp span.b element not found",
+			substringInErr: "timestamp span.b not found with selector",
 		},
 		{
 			name:           "Malformed timestamp string",
