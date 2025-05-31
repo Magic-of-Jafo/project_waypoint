@@ -11,13 +11,13 @@ import (
 	"github.com/stretchr/testify/assert" // Optional: for assertions
 )
 
-// TestMain will be called before running tests in this package.
-func TestMain(m *testing.M) {
-	log.SetFlags(log.LstdFlags | log.Lshortfile | log.Lmicroseconds)
-	log.SetOutput(os.Stderr)
-	log.Println("TestMain: Logger initialized for orchestrator tests.")
-	os.Exit(m.Run())
-}
+// // TestMain will be called before running tests in this package.
+// func TestMain(m *testing.M) {
+// 	log.SetFlags(log.LstdFlags | log.Lshortfile | log.Lmicroseconds)
+// 	log.SetOutput(os.Stderr)
+// 	log.Println("TestMain: Logger initialized for orchestrator tests.")
+// 	os.Exit(m.Run())
+// }
 
 // TestProcessTopic is the main test function for ProcessTopic.
 // It should cover various scenarios as outlined in Story 3.5, Task 7.

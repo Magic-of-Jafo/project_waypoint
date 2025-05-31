@@ -135,7 +135,12 @@ func ProcessTopic(topicID string, archivePath string, outputPath string /*, topi
 			metadata, extractErr := extractorlogic.ExtractPostMetadata(postDoc, filePath)
 			if extractErr != nil {
 				log.Printf("[WARNING] Error extracting metadata for post %d on page %s: %v. Some metadata might be missing.", j+1, filePath, extractErr)
-				return fmt.Errorf("fatal error during metadata extraction for post %d on page %s: %w", j+1, filePath, extractErr)
+				// Instead of returning a fatal error, log and continue to the next post.
+				// The error from extractorlogic.ExtractPostMetadata might contain multiple errors.
+				// We log it and mark this specific post as problematic, but don't stop the whole topic.
+				// If needed, a counter for failed posts per topic could be added and a threshold set
+				// for when to abort a topic entirely. For now, we try to get as much as possible.
+				continue
 			}
 
 			// Task 3.1: Parse Post Content into Structured Blocks
